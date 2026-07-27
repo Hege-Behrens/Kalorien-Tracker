@@ -16,6 +16,7 @@ from rechnungen_sortieren import (
     build_draft,
     classify,
     is_rechnung,
+    filtere_neue,
     ist_provend,
     target_dir,
     teile_nach_groesse,
@@ -155,6 +156,36 @@ def pruefe_aufteilung():
     return fehler
 
 
+def pruefe_wiederholter_lauf():
+    """Ein zweiter Lauf darf dieselbe Rechnung nicht noch einmal ablegen."""
+    rechnungen = [
+        {"message_id": "<a@mail>", "betreff": "alt"},
+        {"message_id": "<b@mail>", "betreff": "neu"},
+        {"message_id": "", "betreff": "ohne ID"},
+    ]
+    gesehen = {"<a@mail>"}
+
+    uebrig = [r["betreff"] for r in filtere_neue(rechnungen, gesehen)]
+    fehler = 0
+
+    if "alt" in uebrig:
+        print("FEHL  bereits verarbeitete Rechnung wurde erneut aufgenommen")
+        fehler += 1
+    if "neu" not in uebrig:
+        print("FEHL  neue Rechnung fehlt")
+        fehler += 1
+    # Ohne Message-ID lieber doppelt ablegen als übersehen.
+    if "ohne ID" not in uebrig:
+        print("FEHL  Rechnung ohne Message-ID wurde verworfen")
+        fehler += 1
+    # Zweiter Lauf über dieselbe Menge: nichts bleibt übrig.
+    alle_gesehen = {"<a@mail>", "<b@mail>"}
+    if len(filtere_neue(rechnungen[:2], alle_gesehen)) != 0:
+        print("FEHL  zweiter Lauf liefert noch Rechnungen")
+        fehler += 1
+    return fehler
+
+
 def pruefe_ablagepfad():
     """Eingangsrechnungen liegen nach Jahr, Monat und Kategorie."""
     basis = Path("/Steuer")
@@ -236,8 +267,9 @@ def main():
     fehler += pruefe_entwurf()
     fehler += pruefe_ablagepfad()
     fehler += pruefe_aufteilung()
+    fehler += pruefe_wiederholter_lauf()
 
-    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(PROVEND) + 12
+    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(PROVEND) + 16
     if fehler:
         print(f"\n{fehler} von {gesamt} Tests fehlgeschlagen.")
         sys.exit(1)

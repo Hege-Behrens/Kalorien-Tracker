@@ -316,6 +316,51 @@ def ensure_label(imap, label):
     imap.subscribe(f'"{label}"')
 
 
+def bereits_verarbeitet(imap, labels):
+    """Message-IDs aller Mails, die schon in einem der Ziel-Label liegen.
+
+    Damit erkennt ein wiederholter Lauf, was er beim letzten Mal schon
+    abgelegt hat — ohne dass eine Zustandsdatei mitgeführt werden muss.
+    Die Wahrheit steht im Postfach selbst.
+    """
+    gesehen = set()
+    for label in labels:
+        status, _ = imap.select(f'"{label}"', readonly=True)
+        if status != "OK":
+            continue
+
+        status, data = imap.uid("SEARCH", None, "ALL")
+        if status != "OK" or not data[0]:
+            continue
+
+        uids = b",".join(data[0].split())
+        status, resp = imap.uid(
+            "FETCH", uids.decode(), "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
+        )
+        if status != "OK":
+            continue
+
+        for teil in resp:
+            if not isinstance(teil, tuple) or len(teil) < 2:
+                continue
+            treffer = re.search(rb"message-id:\s*(<[^>]+>)", teil[1], re.IGNORECASE)
+            if treffer:
+                gesehen.add(treffer.group(1).decode().strip())
+    return gesehen
+
+
+def filtere_neue(rechnungen, gesehen):
+    """Wirf raus, was laut Message-ID schon verarbeitet wurde.
+
+    Eine Mail ohne Message-ID wird mitgenommen: doppelt abgelegt ist
+    ärgerlich, übersehen wäre schlimmer.
+    """
+    return [
+        r for r in rechnungen
+        if not r.get("message_id") or r["message_id"] not in gesehen
+    ]
+
+
 def find_drafts_folder(imap):
     status, folders = imap.list()
     if status != "OK":
@@ -470,6 +515,7 @@ def collect_rechnungen(imap, ordner, seit=None, bis=None):
         rechnungen.append({
             "uid": uid,
             "ordner": ordner,
+            "message_id": (msg.get("Message-ID") or "").strip(),
             "betreff": subject or "(ohne Betreff)",
             "absender": sender,
             "datum": datum,
@@ -486,7 +532,7 @@ def mb(anzahl_bytes):
 
 
 def run(username, password, ordner_liste, seit, bis, stichtag,
-        steuer_dir, dry_run, skip_draft, titel):
+        steuer_dir, dry_run, skip_draft, titel, erneut=False):
     prefix = "[Testlauf] " if dry_run else ""
     print(f"{prefix}Verbinde mit {IMAP_HOST} als {username} …")
 
@@ -507,11 +553,31 @@ def run(username, password, ordner_liste, seit, bis, stichtag,
             rechnungen.extend(gefunden)
 
         rechnungen.sort(key=lambda r: r["datum"])
-        print(f"\n{len(rechnungen)} Rechnung(en) insgesamt.\n")
+        print(f"\n{len(rechnungen)} Rechnung(en) insgesamt.")
 
         if not rechnungen:
             print("Nichts zu sortieren.")
             return
+
+        # Was schon in einem Ziel-Label liegt, wurde bereits abgelegt. Ohne
+        # diesen Abgleich würde jeder Lauf dieselben Belege erneut schreiben.
+        if erneut:
+            print("(--erneut: bereits verarbeitete Rechnungen werden mitgenommen)\n")
+        else:
+            gesehen = bereits_verarbeitet(
+                imap,
+                [LABEL_PRIVAT, LABEL_GESCHAEFTLICH, LABEL_PROVEND_RECHNUNGEN],
+            )
+            vorher = len(rechnungen)
+            rechnungen = filtere_neue(rechnungen, gesehen)
+            uebersprungen = vorher - len(rechnungen)
+            if uebersprungen:
+                print(f"{uebersprungen} bereits verarbeitet – übersprungen.")
+            print()
+
+            if not rechnungen:
+                print("Keine neuen Rechnungen.")
+                return
 
         for r in rechnungen:
             kategorie = r["kategorie"]
@@ -632,6 +698,8 @@ def main():
     parser.add_argument("--steuer-dir", help="Pfad zum iCloud-Steuerordner")
     parser.add_argument("--dry-run", action="store_true", help="Nur anzeigen, nichts schreiben")
     parser.add_argument("--kein-entwurf", action="store_true", help="Entwürfe überspringen")
+    parser.add_argument("--erneut", action="store_true",
+                        help="Auch bereits verarbeitete Rechnungen noch einmal ablegen")
     args = parser.parse_args()
 
     if (args.monat is None) != (args.jahr is None):
@@ -688,6 +756,7 @@ def main():
         dry_run=args.dry_run,
         skip_draft=args.kein_entwurf,
         titel=titel,
+        erneut=args.erneut,
     )
 
 

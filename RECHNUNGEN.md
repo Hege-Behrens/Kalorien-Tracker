@@ -216,11 +216,67 @@ Die Muster greifen ab Wortanfang und tolerieren Trennzeichen — `ewe go` findet
 auch `ewe-go.de`, `ladestrom` auch `Ladestromabrechnung`, aber `elli` nicht
 mehr das `elli` in `voellig`.
 
-## Regelmäßig laufen lassen
+## Automatisch laufen lassen
 
-Für den Monatsabschluss, z. B. am 1. jedes Monats um 9 Uhr für den Vormonat —
-via `crontab -e`:
+```bash
+./automation/installieren.sh
+```
 
+Das Skript fragt einmalig nach dem Gmail-App-Passwort, legt es in der
+**macOS-Keychain** ab und richtet zwei launchd-Jobs ein:
+
+| Job | Wann | Was |
+|---|---|---|
+| `…rechnungen.sortieren` | täglich 7:00 und 19:00 Uhr | einsortieren und ablegen, **keine** Entwürfe |
+| `…rechnungen.entwurf` | am 1. jedes Monats, 8:00 Uhr | zusätzlich den Entwurf an DATEV |
+
+Die Trennung ist Absicht: Liefe der Entwurf zweimal täglich mit, lägen nach
+einer Woche vierzehn Entwürfe mit überlappendem Inhalt im Postfach. Sortiert
+und abgelegt wird trotzdem zweimal am Tag, sodass nichts liegen bleibt.
+
+Andere Zeiten? Die `StartCalendarInterval`-Blöcke in
+`automation/*.plist` anpassen und `installieren.sh` erneut ausführen.
+
+### Bedienung
+
+```bash
+./automation/installieren.sh --status      # läuft es?
+./automation/installieren.sh --entfernen   # wieder abbauen
+tail -f ~/Library/Logs/Rechnungen/rechnungen.log
+
+# Lauf sofort auslösen, ohne auf die Uhrzeit zu warten
+launchctl kickstart -p gui/$(id -u)/de.hegebehrens.rechnungen.sortieren
 ```
-0 9 1 * * cd /pfad/zum/repo && GMAIL_APP_PASSWORD='...' python3 rechnungen_sortieren.py --monat $(date -v-1m +%m) --jahr $(date -v-1m +%Y)
+
+### Warum die Keychain
+
+Das App-Passwort steht **nicht** in der plist und in keiner Datei im
+Repository — dort wäre es für jeden lesbaren Prozess im Klartext sichtbar.
+Der Wrapper holt es zur Laufzeit mit `security find-generic-password` und gibt
+es nur als Umgebungsvariable an den Lauf weiter.
+
+Manuell hinterlegen oder ändern:
+
+```bash
+security add-generic-password -a "$USER" -s gmail-rechnungen -w 'App-Passwort' -U
 ```
+
+### Doppelte Ablage
+
+Ein wiederholter Lauf darf dieselbe Rechnung nicht erneut ablegen — sonst
+lägen nach einer Woche vierzehn Kopien jedes Belegs im Steuerordner.
+
+Das Skript prüft deshalb vor jedem Lauf, welche Message-IDs bereits in einem
+der Ziel-Label liegen, und überspringt diese. Der Zustand steht damit im
+Postfach selbst; es gibt keine Zustandsdatei, die verloren gehen oder
+veralten kann. Nach einem Rechnerwechsel funktioniert es unverändert weiter.
+
+Eine Mail ohne Message-ID wird immer mitgenommen — doppelt abgelegt ist
+ärgerlich, übersehen wäre schlimmer. Wer bewusst alles noch einmal ablegen
+will, nimmt `--erneut`.
+
+### Wenn der Mac schlief
+
+launchd holt einen verpassten Lauf beim Aufwachen nach. Ist der Mac zur
+geplanten Zeit ganz aus, fällt der Lauf aus — der nächste holt alles nach,
+weil ohnehin über den gesamten Bestand gearbeitet wird.
