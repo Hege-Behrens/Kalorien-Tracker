@@ -48,8 +48,9 @@ python3 rechnungen_sortieren.py --jahr 2026 --monat 6
    `iCloud Drive/Steuer/<Jahr>/Privat` bzw. `.../Geschäftlich`
    — benannt nach dem Muster `2026-07-03_Absender_Rechnung.pdf`
 4. setzt in Gmail das Label `Rechnungen/Privat` bzw. `Rechnungen/Geschäftlich`
+   — ProVend-Rechnungen stattdessen `ProVend Deutschland/Rechnungen an ProVend`
 5. legt im Entwürfe-Ordner eine Monatsübersicht an, adressiert an den
-   DATEV-Rechnungseingang, mit allen Belegen im Anhang
+   DATEV-Rechnungseingang, mit allen Belegen im Anhang (ohne ProVend)
 
 ## Erkennungsregeln
 
@@ -72,17 +73,33 @@ in `Steuer/<Jahr>/_Zu_pruefen`, bekommt kein Gmail-Label und erscheint im Entwur
 unter „NOCH ZU PRÜFEN". Bei Steuerunterlagen ist eine offene Zuordnung billiger
 als eine falsche.
 
-## Nur sortieren, nicht hochladen
+## ProVend Deutschland
 
-Absender in `NICHT_HOCHLADEN_MUSTER` — aktuell **Provend** — werden in Gmail
-ganz normal einsortiert, aber:
+ProVend läuft komplett getrennt vom übrigen Rechnungslauf und hat einen eigenen
+Ordner:
 
-- die Belege landen **nicht** im iCloud-Steuerordner
-- sie hängen **nicht** am Entwurf an DATEV
+```
+ProVend Deutschland
+└── Rechnungen an ProVend
+```
 
-Im Entwurf erscheinen sie am Ende unter „NICHT ÜBERMITTELT – nur einsortiert",
-damit im Monatsabschluss sichtbar bleibt, dass sie bewusst ausgelassen wurden
-und nicht etwa vergessen.
+Rechnungen mit ProVend-Bezug werden **nur weggeräumt**:
+
+- Label `ProVend Deutschland/Rechnungen an ProVend` wird gesetzt
+- **keine** Ablage im iCloud-Steuerordner
+- **kein** Eintrag und **kein** Anhang im Entwurf an DATEV — sie werden nicht versendet
+
+Erkannt wird ProVend über `PROVEND_MUSTER`, und zwar in Absender **und**
+Empfänger. Das ist wichtig, weil eine Rechnung, die *an* ProVend geht, die
+Adresse im To/Cc trägt und nicht im Absender.
+
+Beim Ausführen meldet das Skript in der Konsole, wie viele ProVend-Rechnungen
+einsortiert und aus dem Entwurf herausgehalten wurden — in der Mail selbst
+taucht davon nichts auf.
+
+Hinweis: Rechnungen, die du selbst an ProVend geschickt hast, liegen im
+Gesendet-Ordner, nicht im Posteingang. Das Skript durchsucht den Posteingang;
+ausgehende Rechnungen erfasst es nur, wenn du dich selbst ins Cc gesetzt hast.
 
 ## Tests
 

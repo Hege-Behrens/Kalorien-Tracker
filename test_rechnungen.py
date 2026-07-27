@@ -5,8 +5,9 @@ Aufruf:  python3 test_rechnungen.py
 """
 
 import sys
+from datetime import datetime
 
-from rechnungen_sortieren import classify, is_rechnung, nur_sortieren
+from rechnungen_sortieren import build_draft, classify, is_rechnung, ist_provend
 
 
 ANHANG = [("beleg.pdf", b"%PDF-1.4")]
@@ -17,7 +18,6 @@ KLASSIFIZIERUNG = [
     ("Rechnung", "kundenservice@is24.de", "", "geschaeftlich"),
     ("Honorarrechnung", "m.weitzel@kanzlei.de", "Meike Weitzel", "geschaeftlich"),
     ("Rechnung", "meike.weitzel@buero.de", "", "geschaeftlich"),
-    ("Rechnung", "info@provenddeutschland.de", "", "geschaeftlich"),
     ("Ladestromabrechnung Juli", "service@enbw-mobility.de", "", "geschaeftlich"),
     ("Rechnung", "billing@ionity.eu", "", "geschaeftlich"),
     ("Rechnung Ladevorgang", "abrechnung@ewe-go.de", "", "geschaeftlich"),
@@ -38,12 +38,48 @@ ERKENNUNG = [
     ("Newsletter August", True, False),
 ]
 
-# (Absender, ob vom Upload ausgenommen)
-AUSSCHLUSS = [
-    ("info@provenddeutschland.de", True),
-    ("billing@ionity.eu", False),
-    ("no-reply@immobilienscout24.de", False),
+# (Absender, Empfänger, ob es ProVend-Post ist)
+PROVEND = [
+    # von ProVend
+    ("info@provenddeutschland.de", "", True),
+    # an ProVend – hier steht die Adresse im Empfängerfeld
+    ("hegebehrens.rechnung@gmail.com", "buchhaltung@provenddeutschland.de", True),
+    ("billing@ionity.eu", "", False),
+    ("no-reply@immobilienscout24.de", "", False),
 ]
+
+
+def pruefe_entwurf():
+    """ProVend darf im Entwurf an DATEV nirgends auftauchen."""
+    rechnungen = [
+        {
+            "kategorie": "geschaeftlich", "provend": False,
+            "datum": datetime(2026, 8, 4), "absender": "billing@ionity.eu",
+            "betreff": "Rechnung Ladestrom",
+            "attachments": [("ladestrom.pdf", b"%PDF-1.4")],
+        },
+        {
+            "kategorie": "geschaeftlich", "provend": True,
+            "datum": datetime(2026, 8, 9), "absender": "info@provenddeutschland.de",
+            "betreff": "Rechnung 88",
+            "attachments": [("provend.pdf", b"%PDF-1.4")],
+        },
+    ]
+    draft = build_draft(rechnungen, 2026, 8, "hegebehrens.rechnung@gmail.com")
+    text = draft.get_body(preferencelist=("plain",)).get_content()
+    anhaenge = [p.get_filename() for p in draft.iter_attachments()]
+
+    fehler = 0
+    if "provend" in text.lower():
+        print("FEHL  Entwurfstext erwähnt ProVend")
+        fehler += 1
+    if "provend.pdf" in anhaenge:
+        print("FEHL  ProVend-Beleg hängt am Entwurf")
+        fehler += 1
+    if "ladestrom.pdf" not in anhaenge:
+        print("FEHL  regulärer Beleg fehlt am Entwurf")
+        fehler += 1
+    return fehler
 
 
 def main():
@@ -61,13 +97,15 @@ def main():
             print(f"FEHL  is_rechnung({subject!r}) = {got}, erwartet {erwartet}")
             fehler += 1
 
-    for sender, erwartet in AUSSCHLUSS:
-        got = nur_sortieren("Rechnung", sender, "")
+    for sender, empfaenger, erwartet in PROVEND:
+        got = ist_provend("Rechnung", sender, "", empfaenger)
         if got != erwartet:
-            print(f"FEHL  nur_sortieren({sender!r}) = {got}, erwartet {erwartet}")
+            print(f"FEHL  ist_provend({sender!r}, {empfaenger!r}) = {got}, erwartet {erwartet}")
             fehler += 1
 
-    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(AUSSCHLUSS)
+    fehler += pruefe_entwurf()
+
+    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(PROVEND) + 3
     if fehler:
         print(f"\n{fehler} von {gesamt} Tests fehlgeschlagen.")
         sys.exit(1)

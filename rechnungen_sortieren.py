@@ -34,6 +34,10 @@ RECHNUNGSEINGANG = "30b48da3-0fb7-42c5-acb2-c52ad2e28f42@uploadmail.datev.de"
 LABEL_PRIVAT = "Rechnungen/Privat"
 LABEL_GESCHAEFTLICH = "Rechnungen/Geschäftlich"
 
+# ProVend läuft getrennt: eigener Ordner, nichts davon wird übermittelt.
+LABEL_PROVEND = "ProVend Deutschland"
+LABEL_PROVEND_RECHNUNGEN = "ProVend Deutschland/Rechnungen an ProVend"
+
 # Gmail nennt den Entwurfsordner je nach Spracheinstellung anders.
 DRAFTS_CANDIDATES = ["[Gmail]/Entwürfe", "[Gmail]/Drafts", "[Google Mail]/Entwürfe"]
 
@@ -63,12 +67,13 @@ GESCHAEFTLICH_MUSTER = [
     "immoscout", "is24", "immobilienscout", "immowelt", "sprengnetter", "haufe",
     "meike weitzel", "weitzel",
     "steuerberater", "kanzlei", "notar", "ihk", "berufsgenossenschaft",
-    "bürobedarf", "makler", "provend",
+    "bürobedarf", "makler",
 ] + LADESTROM_MUSTER
 
-# Rechnungen dieser Absender werden nur in Gmail einsortiert: keine Ablage im
-# Steuerordner, kein Anhang im Monatsentwurf an DATEV.
-NICHT_HOCHLADEN_MUSTER = [
+# ProVend-Post wird nur weggeräumt: kein Steuerordner, kein Entwurf, kein Versand.
+# Wird gegen Absender UND Empfänger geprüft, damit auch Rechnungen erfasst
+# werden, die an ProVend gehen statt von dort zu kommen.
+PROVEND_MUSTER = [
     "provend",
 ]
 
@@ -161,10 +166,14 @@ def matcht_eines(haystack, muster_liste):
     return any(matcht(haystack, m) for m in muster_liste)
 
 
-def nur_sortieren(subject, sender, body):
-    """Prüfe, ob die Rechnung nur einsortiert und nicht hochgeladen werden soll."""
-    haystack = f"{subject} {sender} {body[:2000]}".lower()
-    return matcht_eines(haystack, NICHT_HOCHLADEN_MUSTER)
+def ist_provend(subject, sender, body, empfaenger=""):
+    """Prüfe, ob die Mail zu ProVend gehört.
+
+    Der Empfänger zählt mit: eine Rechnung, die an ProVend geht, trägt die
+    Adresse im To/Cc, nicht im Absender.
+    """
+    haystack = f"{subject} {sender} {empfaenger} {body[:2000]}".lower()
+    return matcht_eines(haystack, PROVEND_MUSTER)
 
 
 def classify(subject, sender, body):
@@ -271,9 +280,8 @@ def build_draft(rechnungen, jahr, monat, absender):
     msg["Subject"] = f"Rechnungseingang {monatsname} {jahr}"
     msg["Date"] = email.utils.formatdate(localtime=True)
 
-    # Rechnungen, die nur einsortiert werden, gehören nicht in die Übermittlung.
-    zu_uebermitteln = [r for r in rechnungen if not r["nur_sortieren"]]
-    ausgenommen = [r for r in rechnungen if r["nur_sortieren"]]
+    # ProVend wird nur weggeräumt und taucht in der Übermittlung nicht auf.
+    zu_uebermitteln = [r for r in rechnungen if not r["provend"]]
 
     geschaeftlich = [r for r in zu_uebermitteln if r["kategorie"] == "geschaeftlich"]
     privat = [r for r in zu_uebermitteln if r["kategorie"] == "privat"]
@@ -281,15 +289,14 @@ def build_draft(rechnungen, jahr, monat, absender):
 
     lines = [f"Rechnungen {monatsname} {jahr}", ""]
 
-    def block(titel, eintraege, mit_anhang=True):
+    def block(titel, eintraege):
         lines.append(f"{titel} ({len(eintraege)})")
         if not eintraege:
             lines.append("  – keine –")
         for r in eintraege:
             lines.append(f"  • {r['datum']:%d.%m.%Y}  {r['absender']}  –  {r['betreff']}")
-            if mit_anhang:
-                for name, _ in r["attachments"]:
-                    lines.append(f"      Anhang: {name}")
+            for name, _ in r["attachments"]:
+                lines.append(f"      Anhang: {name}")
         lines.append("")
 
     block("GESCHÄFTLICH", geschaeftlich)
@@ -298,11 +305,6 @@ def build_draft(rechnungen, jahr, monat, absender):
         block("NOCH ZU PRÜFEN", offen)
 
     lines.append(f"Gesamt: {len(zu_uebermitteln)} Rechnung(en)")
-
-    if ausgenommen:
-        lines.append("")
-        block("NICHT ÜBERMITTELT – nur einsortiert", ausgenommen, mit_anhang=False)
-
     msg.set_content("\n".join(lines))
 
     for r in zu_uebermitteln:
@@ -341,6 +343,9 @@ def collect_rechnungen(imap, jahr, monat):
         msg = email.message_from_bytes(msg_data[0][1])
         subject = decode_header_value(msg.get("Subject", ""))
         sender = decode_header_value(msg.get("From", ""))
+        empfaenger = " ".join(
+            decode_header_value(msg.get(feld, "")) for feld in ("To", "Cc")
+        )
         body = get_body(msg)
         attachments = find_attachments(msg)
 
@@ -358,7 +363,7 @@ def collect_rechnungen(imap, jahr, monat):
             "absender": sender,
             "datum": datum,
             "kategorie": classify(subject, sender, body),
-            "nur_sortieren": nur_sortieren(subject, sender, body),
+            "provend": ist_provend(subject, sender, body, empfaenger),
             "attachments": attachments,
         })
 
@@ -376,6 +381,8 @@ def run(username, password, jahr, monat, steuer_dir, dry_run, skip_draft):
         if not dry_run:
             ensure_label(imap, LABEL_PRIVAT)
             ensure_label(imap, LABEL_GESCHAEFTLICH)
+            ensure_label(imap, LABEL_PROVEND)
+            ensure_label(imap, LABEL_PROVEND_RECHNUNGEN)
 
         rechnungen = collect_rechnungen(imap, jahr, monat)
         print(f"{len(rechnungen)} Rechnung(en) für {monat:02d}/{jahr} gefunden.\n")
@@ -390,18 +397,23 @@ def run(username, password, jahr, monat, steuer_dir, dry_run, skip_draft):
         for r in rechnungen:
             kategorie = r["kategorie"]
             directory = target_dir(steuer_dir, kategorie, r["datum"].year)
-            label = {
-                "geschaeftlich": LABEL_GESCHAEFTLICH,
-                "privat": LABEL_PRIVAT,
-            }.get(kategorie)
 
-            beschriftung = kategorie or "unklar → _Zu_pruefen"
+            if r["provend"]:
+                label = LABEL_PROVEND_RECHNUNGEN
+                beschriftung = "ProVend – nur wegsortieren"
+            else:
+                label = {
+                    "geschaeftlich": LABEL_GESCHAEFTLICH,
+                    "privat": LABEL_PRIVAT,
+                }.get(kategorie)
+                beschriftung = kategorie or "unklar → _Zu_pruefen"
+
             print(f"  {r['datum']:%d.%m.%Y}  {r['betreff'][:50]}")
             print(f"      Absender:  {r['absender'][:60]}")
             print(f"      Kategorie: {beschriftung}")
 
-            if r["nur_sortieren"]:
-                print("      Ablage:    übersprungen (nur sortieren, kein Upload)")
+            if r["provend"]:
+                print("      Ablage:    keine (nicht in den Steuerordner)")
             else:
                 for name, payload in r["attachments"]:
                     dateiname = f"{r['datum']:%Y-%m-%d}_{sanitize(r['absender'], 30)}_{sanitize(Path(name).stem)}{Path(name).suffix}"
@@ -415,6 +427,13 @@ def run(username, password, jahr, monat, steuer_dir, dry_run, skip_draft):
             else:
                 print("      Gmail:     kein Label (Kategorie unklar)")
             print()
+
+        provend = [r for r in rechnungen if r["provend"]]
+        if provend:
+            print(
+                f"{len(provend)} ProVend-Rechnung(en) nur einsortiert "
+                f"unter '{LABEL_PROVEND_RECHNUNGEN}' – nicht im Entwurf.\n"
+            )
 
         if skip_draft:
             return
