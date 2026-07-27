@@ -28,6 +28,8 @@ ANHANG = [("beleg.pdf", b"%PDF-1.4")]
 KLASSIFIZIERUNG = [
     ("Rechnung", "no-reply@immobilienscout24.de", "", "geschaeftlich"),
     ("Rechnung", "kundenservice@is24.de", "", "geschaeftlich"),
+    ("Fw: ImmoWerbung Rechnung Nr. 124640", "frederic.hege-behrens@db.com", "", "geschaeftlich"),
+    ("APCOA FLOW Zahlung dankend erhalten", "donotreply@apcoaflow.com", "Quittung", "geschaeftlich"),
     ("Honorarrechnung", "m.weitzel@kanzlei.de", "Meike Weitzel", "geschaeftlich"),
     ("Rechnung", "meike.weitzel@buero.de", "", "geschaeftlich"),
     ("Ladestromabrechnung Juli", "service@enbw-mobility.de", "", "geschaeftlich"),
@@ -66,6 +68,9 @@ PROVEND = [
     ("info@provenddeutschland.de", "", True),
     # an ProVend – hier steht die Adresse im Empfängerfeld
     ("hegebehrens.rechnung@gmail.com", "buchhaltung@provenddeutschland.de", True),
+    # Selgros läuft über ProVend – weitergeleitet wie auch direkt
+    ("info@provenddeutschland.de", "", True),
+    ("218KS-Norderstedt@Selgros.de", "", True),
     ("billing@ionity.eu", "", False),
     ("no-reply@immobilienscout24.de", "", False),
 ]

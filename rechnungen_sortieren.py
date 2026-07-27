@@ -68,7 +68,8 @@ LADESTROM_MUSTER = [
 GESCHAEFTLICH_MUSTER = [
     "datev", "telekom.de", "vodafone", "1und1", "ionos", "strato",
     "aws", "amazon web services", "google cloud", "microsoft", "adobe",
-    "immoscout", "is24", "immobilienscout", "immowelt", "sprengnetter", "haufe",
+    "immoscout", "is24", "immobilienscout", "immowelt", "immowerbung",
+    "sprengnetter", "haufe", "apcoa",
     "meike weitzel", "weitzel",
     "steuerberater", "kanzlei", "notar", "ihk", "berufsgenossenschaft",
     "bürobedarf", "makler",
@@ -80,6 +81,9 @@ GESCHAEFTLICH_MUSTER = [
 # werden, die an ProVend gehen statt von dort zu kommen.
 PROVEND_MUSTER = [
     "provend",
+    # Selgros-Einkäufe laufen über ProVend, egal ob sie weitergeleitet
+    # wurden oder direkt kommen.
+    "selgros",
 ]
 
 # Absender/Stichwörter, die eine Rechnung als privat kennzeichnen.

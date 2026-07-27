@@ -142,8 +142,9 @@ Die Zuordnung privat/geschäftlich läuft über zwei Musterlisten im Skript:
 trag dort deine Lieferanten und Anbieter ein, dann trifft das Skript die
 Zuordnung zuverlässig.
 
-Als geschäftlich eingetragen sind unter anderem Immoscout, Meike Weitzel,
-Deutsche Post sowie sämtlicher Ladestrom fürs Auto (`LADESTROM_MUSTER`:
+Als geschäftlich eingetragen sind unter anderem Immoscout, ImmoWerbung,
+Meike Weitzel, APCOA, Deutsche Post sowie sämtlicher Ladestrom fürs Auto
+(`LADESTROM_MUSTER`:
 EnBW mobility+, Ionity, EWE Go, Shell Recharge, Aral Pulse, Allego, Tesla,
 Qwello, ladecloud … sowie Stichwörter wie Ladevorgang, Ladesäule, Wallbox).
 
@@ -178,6 +179,10 @@ Rechnungen mit ProVend-Bezug werden **nur weggeräumt**:
 Erkannt wird ProVend über `PROVEND_MUSTER`, und zwar in Absender **und**
 Empfänger. Das ist wichtig, weil eine Rechnung, die *an* ProVend geht, die
 Adresse im To/Cc trägt und nicht im Absender.
+
+**Selgros zählt zu ProVend.** Die Einkäufe laufen dort, deshalb steht `selgros`
+mit im Muster — sie werden gleich behandelt, ob sie nun über ProVend
+weitergeleitet wurden oder direkt von Selgros kommen.
 
 Beim Ausführen meldet das Skript in der Konsole, wie viele ProVend-Rechnungen
 einsortiert und aus dem Entwurf herausgehalten wurden — in der Mail selbst
