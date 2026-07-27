@@ -45,8 +45,19 @@ export GMAIL_APP_PASSWORD="$PASSWORT"
 cd "$REPO_DIR" || { log "FEHLER: $REPO_DIR nicht erreichbar."; exit 1; }
 
 if [ "${1:-sortieren}" = "entwurf" ]; then
-    # Monatslauf: sortieren und den Entwurf an DATEV erzeugen.
-    /usr/bin/python3 rechnungen_sortieren.py >> "$LOG_FILE" 2>&1
+    # Monatslauf: Entwurf für den VORMONAT.
+    #
+    # Der Zeitraum ist entscheidend. Liefe der Entwurf über den gesamten
+    # Bestand, enthielte er jeden Monat auch alles Vorherige noch einmal und
+    # DATEV bekäme dieselben Belege wieder und wieder.
+    #
+    # --nur-entwurf, weil der Sortierlauf Ablage und Label bereits erledigt
+    # hat: ohne das würde hier ein zweites Mal in den Steuerordner geschrieben.
+    MONAT=$(date -v-1m +%-m)
+    JAHR=$(date -v-1m +%Y)
+    log "Entwurf für ${MONAT}/${JAHR}"
+    /usr/bin/python3 rechnungen_sortieren.py \
+        --jahr "$JAHR" --monat "$MONAT" --nur-entwurf >> "$LOG_FILE" 2>&1
 else
     # Regellauf: nur einsortieren und ablegen, keine Entwürfe.
     /usr/bin/python3 rechnungen_sortieren.py --kein-entwurf >> "$LOG_FILE" 2>&1

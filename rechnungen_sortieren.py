@@ -12,6 +12,7 @@ Muss lokal auf dem Mac laufen, auf dem iCloud Drive eingerichtet ist.
 """
 
 import argparse
+import base64
 import email
 import imaplib
 import os
@@ -307,13 +308,46 @@ def save_attachment(directory, filename, payload, dry_run=False):
     return target
 
 
+def imap_ordner(name):
+    """Kodiere einen Ordnernamen für IMAP (modified UTF-7, RFC 3501).
+
+    imaplib schickt Kommandos als ASCII. Ein Label wie "Rechnungen/Geschäftlich"
+    oder "[Gmail]/Entwürfe" löst dort sonst einen UnicodeEncodeError aus,
+    noch bevor der Server es zu sehen bekommt.
+    """
+    ergebnis = []
+    puffer = []
+
+    def puffer_leeren():
+        if not puffer:
+            return
+        roh = "".join(puffer).encode("utf-16-be")
+        kodiert = base64.b64encode(roh).decode("ascii").rstrip("=")
+        # In modified UTF-7 steht das Komma für den Base64-Schrägstrich.
+        ergebnis.append("&" + kodiert.replace("/", ",") + "-")
+        puffer.clear()
+
+    for zeichen in name:
+        if zeichen == "&":
+            puffer_leeren()
+            ergebnis.append("&-")
+        elif "\x20" <= zeichen <= "\x7e":
+            puffer_leeren()
+            ergebnis.append(zeichen)
+        else:
+            puffer.append(zeichen)
+    puffer_leeren()
+
+    return '"' + "".join(ergebnis) + '"'
+
+
 def ensure_label(imap, label):
     """Lege ein Gmail-Label an, falls es noch nicht existiert."""
-    status, _ = imap.select(f'"{label}"', readonly=True)
+    status, _ = imap.select(imap_ordner(label), readonly=True)
     if status == "OK":
         return
-    imap.create(f'"{label}"')
-    imap.subscribe(f'"{label}"')
+    imap.create(imap_ordner(label))
+    imap.subscribe(imap_ordner(label))
 
 
 def bereits_verarbeitet(imap, labels):
@@ -325,7 +359,7 @@ def bereits_verarbeitet(imap, labels):
     """
     gesehen = set()
     for label in labels:
-        status, _ = imap.select(f'"{label}"', readonly=True)
+        status, _ = imap.select(imap_ordner(label), readonly=True)
         if status != "OK":
             continue
 
@@ -333,19 +367,23 @@ def bereits_verarbeitet(imap, labels):
         if status != "OK" or not data[0]:
             continue
 
-        uids = b",".join(data[0].split())
-        status, resp = imap.uid(
-            "FETCH", uids.decode(), "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
-        )
-        if status != "OK":
-            continue
-
-        for teil in resp:
-            if not isinstance(teil, tuple) or len(teil) < 2:
+        # In Blöcken abfragen: bei einigen tausend Mails würde ein einziges
+        # FETCH-Kommando sonst zehntausende Zeichen lang.
+        alle_uids = data[0].split()
+        for start in range(0, len(alle_uids), 500):
+            block = b",".join(alle_uids[start:start + 500]).decode()
+            status, resp = imap.uid(
+                "FETCH", block, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])"
+            )
+            if status != "OK":
                 continue
-            treffer = re.search(rb"message-id:\s*(<[^>]+>)", teil[1], re.IGNORECASE)
-            if treffer:
-                gesehen.add(treffer.group(1).decode().strip())
+
+            for teil in resp:
+                if not isinstance(teil, tuple) or len(teil) < 2:
+                    continue
+                treffer = re.search(rb"message-id:\s*(<[^>]+>)", teil[1], re.IGNORECASE)
+                if treffer:
+                    gesehen.add(treffer.group(1).decode().strip())
     return gesehen
 
 
@@ -471,7 +509,7 @@ def build_draft(rechnungen, absender, titel, teil=1, gesamt=1):
 
 def collect_rechnungen(imap, ordner, seit=None, bis=None):
     """Hole alle Rechnungen eines Ordners, optional auf einen Zeitraum begrenzt."""
-    status, _ = imap.select(f'"{ordner}"', readonly=True)
+    status, _ = imap.select(imap_ordner(ordner), readonly=True)
     if status != "OK":
         print(f"  Ordner '{ordner}' nicht gefunden – übersprungen.")
         return []
@@ -490,19 +528,27 @@ def collect_rechnungen(imap, ordner, seit=None, bis=None):
         return []
 
     rechnungen = []
+    fehlerhaft = 0
     for uid in data[0].split():
-        status, msg_data = imap.uid("FETCH", uid, "(RFC822)")
-        if status != "OK" or not msg_data or not isinstance(msg_data[0], tuple):
-            continue
+        # Eine einzelne unlesbare Mail darf einen unbeaufsichtigten Lauf nicht
+        # abbrechen — sonst blockiert sie jeden folgenden gleich mit.
+        try:
+            status, msg_data = imap.uid("FETCH", uid, "(RFC822)")
+            if status != "OK" or not msg_data or not isinstance(msg_data[0], tuple):
+                continue
 
-        msg = email.message_from_bytes(msg_data[0][1])
-        subject = decode_header_value(msg.get("Subject", ""))
-        sender = decode_header_value(msg.get("From", ""))
-        empfaenger = " ".join(
-            decode_header_value(msg.get(feld, "")) for feld in ("To", "Cc")
-        )
-        body = get_body(msg)
-        attachments = find_attachments(msg)
+            msg = email.message_from_bytes(msg_data[0][1])
+            subject = decode_header_value(msg.get("Subject", ""))
+            sender = decode_header_value(msg.get("From", ""))
+            empfaenger = " ".join(
+                decode_header_value(msg.get(feld, "")) for feld in ("To", "Cc")
+            )
+            body = get_body(msg)
+            attachments = find_attachments(msg)
+        except Exception as fehler:                     # noqa: BLE001
+            fehlerhaft += 1
+            print(f"  UID {uid.decode(errors='replace')} übersprungen: {fehler}")
+            continue
 
         if not is_rechnung(subject, sender, body, attachments):
             continue
@@ -511,6 +557,9 @@ def collect_rechnungen(imap, ordner, seit=None, bis=None):
             datum = parsedate_to_datetime(msg.get("Date", ""))
         except (TypeError, ValueError):
             datum = datetime.now(timezone.utc)
+        if datum.tzinfo is None:
+            # Ohne Zeitzone scheitert später der Vergleich mit dem Stichtag.
+            datum = datum.replace(tzinfo=timezone.utc)
 
         rechnungen.append({
             "uid": uid,
@@ -524,6 +573,8 @@ def collect_rechnungen(imap, ordner, seit=None, bis=None):
             "attachments": attachments,
         })
 
+    if fehlerhaft:
+        print(f"  {fehlerhaft} Mail(s) in '{ordner}' nicht lesbar – übersprungen.")
     return rechnungen
 
 
@@ -532,7 +583,7 @@ def mb(anzahl_bytes):
 
 
 def run(username, password, ordner_liste, seit, bis, stichtag,
-        steuer_dir, dry_run, skip_draft, titel, erneut=False):
+        steuer_dir, dry_run, skip_draft, titel, erneut=False, nur_entwurf=False):
     prefix = "[Testlauf] " if dry_run else ""
     print(f"{prefix}Verbinde mit {IMAP_HOST} als {username} …")
 
@@ -540,7 +591,7 @@ def run(username, password, ordner_liste, seit, bis, stichtag,
         imap.login(username, password)
         print("Login erfolgreich.\n")
 
-        if not dry_run:
+        if not dry_run and not nur_entwurf:
             ensure_label(imap, LABEL_PRIVAT)
             ensure_label(imap, LABEL_GESCHAEFTLICH)
             ensure_label(imap, LABEL_PROVEND)
@@ -559,27 +610,35 @@ def run(username, password, ordner_liste, seit, bis, stichtag,
             print("Nichts zu sortieren.")
             return
 
-        # Was schon in einem Ziel-Label liegt, wurde bereits abgelegt. Ohne
-        # diesen Abgleich würde jeder Lauf dieselben Belege erneut schreiben.
-        if erneut:
-            print("(--erneut: bereits verarbeitete Rechnungen werden mitgenommen)\n")
+        # Zwei getrennte Mengen, und das ist der Kern:
+        #
+        #   einzusortieren – nur was noch nicht abgelegt ist. Sonst schriebe
+        #                    jeder Lauf dieselben Belege ein weiteres Mal.
+        #   zu_uebermitteln – alles im Zeitraum, unabhängig davon ob schon
+        #                    abgelegt. Der Sortierlauf läuft zweimal täglich
+        #                    und labelt alles; würde der Entwurf dieselbe
+        #                    Filterung verwenden, fände der Monatslauf nie
+        #                    wieder etwas und bliebe für immer leer.
+        if erneut or nur_entwurf:
+            einzusortieren = rechnungen
+            if erneut:
+                print("(--erneut: bereits verarbeitete Rechnungen werden mitgenommen)")
         else:
             gesehen = bereits_verarbeitet(
                 imap,
                 [LABEL_PRIVAT, LABEL_GESCHAEFTLICH, LABEL_PROVEND_RECHNUNGEN],
             )
-            vorher = len(rechnungen)
-            rechnungen = filtere_neue(rechnungen, gesehen)
-            uebersprungen = vorher - len(rechnungen)
+            einzusortieren = filtere_neue(rechnungen, gesehen)
+            uebersprungen = len(rechnungen) - len(einzusortieren)
             if uebersprungen:
-                print(f"{uebersprungen} bereits verarbeitet – übersprungen.")
-            print()
+                print(f"{uebersprungen} bereits einsortiert – übersprungen.")
+        print()
 
-            if not rechnungen:
-                print("Keine neuen Rechnungen.")
-                return
+        if nur_entwurf:
+            print("(--nur-entwurf: keine Ablage, keine Label)\n")
+            einzusortieren = []
 
-        for r in rechnungen:
+        for r in einzusortieren:
             kategorie = r["kategorie"]
             directory = target_dir(
                 steuer_dir, kategorie, r["datum"].year, r["datum"].month
@@ -610,14 +669,14 @@ def run(username, password, ordner_liste, seit, bis, stichtag,
             if label:
                 if not dry_run:
                     # Kopieren geht nur aus dem Ordner, in dem die Mail liegt.
-                    imap.select(f'"{r["ordner"]}"')
-                    imap.uid("COPY", r["uid"], f'"{label}"')
+                    imap.select(imap_ordner(r["ordner"]))
+                    imap.uid("COPY", r["uid"], imap_ordner(label))
                 print(f"      Gmail:     {label}")
             else:
                 print("      Gmail:     kein Label (Kategorie unklar)")
             print()
 
-        provend = [r for r in rechnungen if r["provend"]]
+        provend = [r for r in einzusortieren if r["provend"]]
         if provend:
             print(
                 f"{len(provend)} ProVend-Rechnung(en) nur einsortiert "
@@ -674,7 +733,7 @@ def run(username, password, ordner_liste, seit, bis, stichtag,
                 continue
 
             imap.append(
-                f'"{drafts_folder}"',
+                imap_ordner(drafts_folder),
                 r"\Draft",
                 imaplib.Time2Internaldate(time.time()),
                 draft.as_bytes(),
@@ -698,6 +757,8 @@ def main():
     parser.add_argument("--steuer-dir", help="Pfad zum iCloud-Steuerordner")
     parser.add_argument("--dry-run", action="store_true", help="Nur anzeigen, nichts schreiben")
     parser.add_argument("--kein-entwurf", action="store_true", help="Entwürfe überspringen")
+    parser.add_argument("--nur-entwurf", action="store_true",
+                        help="Nur Entwürfe bauen: keine Ablage, keine Label")
     parser.add_argument("--erneut", action="store_true",
                         help="Auch bereits verarbeitete Rechnungen noch einmal ablegen")
     args = parser.parse_args()
@@ -742,8 +803,14 @@ def main():
         )
         sys.exit(1)
 
-    steuer_dir = resolve_steuer_dir(args.steuer_dir)
-    print(f"Steuerordner: {steuer_dir}\n")
+    if args.nur_entwurf:
+        # Ohne Ablage wird kein Steuerordner gebraucht — das Skript darf dann
+        # nicht daran scheitern, dass auf diesem Rechner kein iCloud liegt.
+        steuer_dir = None
+        print("Modus: nur Entwürfe (keine Ablage)\n")
+    else:
+        steuer_dir = resolve_steuer_dir(args.steuer_dir)
+        print(f"Steuerordner: {steuer_dir}\n")
 
     run(
         username=username,
@@ -757,6 +824,7 @@ def main():
         skip_draft=args.kein_entwurf,
         titel=titel,
         erneut=args.erneut,
+        nur_entwurf=args.nur_entwurf,
     )
 
 

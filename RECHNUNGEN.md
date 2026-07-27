@@ -228,11 +228,16 @@ Das Skript fragt einmalig nach dem Gmail-App-Passwort, legt es in der
 | Job | Wann | Was |
 |---|---|---|
 | `…rechnungen.sortieren` | täglich 7:00 und 19:00 Uhr | einsortieren und ablegen, **keine** Entwürfe |
-| `…rechnungen.entwurf` | am 1. jedes Monats, 8:00 Uhr | zusätzlich den Entwurf an DATEV |
+| `…rechnungen.entwurf` | am 1. jedes Monats, 8:00 Uhr | Entwurf für den **Vormonat**, ohne erneute Ablage |
 
 Die Trennung ist Absicht: Liefe der Entwurf zweimal täglich mit, lägen nach
 einer Woche vierzehn Entwürfe mit überlappendem Inhalt im Postfach. Sortiert
 und abgelegt wird trotzdem zweimal am Tag, sodass nichts liegen bleibt.
+
+Der Entwurfslauf nimmt genau den **Vormonat** (`--jahr`/`--monat`) und läuft
+mit `--nur-entwurf`. Beides ist notwendig: über den gesamten Bestand enthielte
+der Entwurf jeden Monat auch alles Vorherige noch einmal, und ohne
+`--nur-entwurf` schriebe er die Belege ein zweites Mal in den Steuerordner.
 
 Andere Zeiten? Die `StartCalendarInterval`-Blöcke in
 `automation/*.plist` anpassen und `installieren.sh` erneut ausführen.
@@ -274,6 +279,25 @@ veralten kann. Nach einem Rechnerwechsel funktioniert es unverändert weiter.
 Eine Mail ohne Message-ID wird immer mitgenommen — doppelt abgelegt ist
 ärgerlich, übersehen wäre schlimmer. Wer bewusst alles noch einmal ablegen
 will, nimmt `--erneut`.
+
+**Der Entwurf verwendet diese Filterung bewusst nicht.** Sie steuert allein,
+was abgelegt und gelabelt wird. Würde der Entwurf ebenfalls nur „neue"
+Rechnungen aufnehmen, fände er nach dem zweimal täglichen Sortierlauf nie
+wieder etwas — der Monatsentwurf bliebe für immer leer, ohne dass es
+auffiele. Er arbeitet deshalb über den vollen Zeitraum.
+
+## Ablage anderswo erledigen
+
+Soll das Wegsortieren in iCloud woanders passieren, übernimmt
+`--nur-entwurf` den Rest:
+
+```bash
+python3 rechnungen_sortieren.py --jahr 2026 --monat 6 --nur-entwurf
+```
+
+Dann werden weder Dateien geschrieben noch Label gesetzt — es entstehen nur
+die Entwürfe. Ein Steuerordner muss dafür nicht existieren, das Skript läuft
+also auch auf einem Rechner ohne iCloud Drive.
 
 ### Wenn der Mac schlief
 

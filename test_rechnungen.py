@@ -5,18 +5,26 @@ Aufruf:  python3 test_rechnungen.py
 """
 
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 from pathlib import Path
 
 from rechnungen_sortieren import (
+    DRAFTS_CANDIDATES,
+    LABEL_GESCHAEFTLICH,
+    LABEL_PRIVAT,
+    LABEL_PROVEND,
+    LABEL_PROVEND_RECHNUNGEN,
     MAX_ANHANG_BYTES,
     MAX_MAIL_BYTES,
     anhang_groesse,
     build_draft,
     classify,
     is_rechnung,
+    STANDARD_ORDNER,
     filtere_neue,
+    imap_ordner,
     ist_provend,
     target_dir,
     teile_nach_groesse,
@@ -186,6 +194,53 @@ def pruefe_wiederholter_lauf():
     return fehler
 
 
+def pruefe_ordnernamen():
+    """Ordnernamen müssen IMAP-tauglich kodiert sein.
+
+    imaplib schickt Kommandos als ASCII: ein Label mit Umlaut löst dort einen
+    UnicodeEncodeError aus, bevor der Server es überhaupt sieht.
+    """
+    fehler = 0
+    faelle = [
+        ("Rechnungen/Geschäftlich", '"Rechnungen/Gesch&AOQ-ftlich"'),
+        ("[Gmail]/Entwürfe", '"[Gmail]/Entw&APw-rfe"'),
+        ("INBOX", '"INBOX"'),
+        ("INBOX/Icloud Archiv", '"INBOX/Icloud Archiv"'),
+        # "&" ist in modified UTF-7 das Fluchtzeichen und wird verdoppelt.
+        ("Test&Co", '"Test&-Co"'),
+    ]
+    for name, erwartet in faelle:
+        got = imap_ordner(name)
+        if got != erwartet:
+            print(f"FEHL  imap_ordner({name!r}) = {got!r}, erwartet {erwartet!r}")
+            fehler += 1
+
+    # Der eigentliche Punkt: alles muss ASCII-kodierbar sein.
+    for label in (LABEL_PRIVAT, LABEL_GESCHAEFTLICH, LABEL_PROVEND,
+                  LABEL_PROVEND_RECHNUNGEN, *DRAFTS_CANDIDATES, *STANDARD_ORDNER):
+        try:
+            imap_ordner(label).encode("ascii")
+        except UnicodeEncodeError:
+            print(f"FEHL  {label!r} ist nach Kodierung nicht ASCII-tauglich")
+            fehler += 1
+    return fehler
+
+
+def pruefe_stichtag_vergleich():
+    """Mails ohne Zeitzone dürfen den Stichtagsvergleich nicht sprengen."""
+    fehler = 0
+    # "-0000" ist gültig und liefert ein datetime ohne Zeitzone.
+    datum = parsedate_to_datetime("Mon, 15 Jun 2026 10:00:00 -0000")
+    if datum.tzinfo is None:
+        datum = datum.replace(tzinfo=timezone.utc)
+    try:
+        datum >= datetime(2026, 6, 1, tzinfo=timezone.utc)
+    except TypeError:
+        print("FEHL  Stichtagsvergleich scheitert an fehlender Zeitzone")
+        fehler += 1
+    return fehler
+
+
 def pruefe_ablagepfad():
     """Eingangsrechnungen liegen nach Jahr, Monat und Kategorie."""
     basis = Path("/Steuer")
@@ -268,8 +323,10 @@ def main():
     fehler += pruefe_ablagepfad()
     fehler += pruefe_aufteilung()
     fehler += pruefe_wiederholter_lauf()
+    fehler += pruefe_ordnernamen()
+    fehler += pruefe_stichtag_vergleich()
 
-    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(PROVEND) + 16
+    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(PROVEND) + 28
     if fehler:
         print(f"\n{fehler} von {gesamt} Tests fehlgeschlagen.")
         sys.exit(1)
