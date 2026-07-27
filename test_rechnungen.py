@@ -40,6 +40,15 @@ KLASSIFIZIERUNG = [
     ("Qwello Invoice", "support@qwello.de", "Quittung", "geschaeftlich"),
     ("Ihre Rechnung", "noreply-sw-suedholstein@ladecloud.de", "", "geschaeftlich"),
     ("Rechnung Wallbox", "a@b.de", "", "geschaeftlich"),
+    # Alles rund um Immobilien ist geschäftlich
+    ("Rechnung", "info@ivd-nord.de", "IVD-Immobilienpreisspiegel", "geschaeftlich"),
+    ("Bestellung bei IndustrialPort", "info@industrialport.net", "Rechnung", "geschaeftlich"),
+    ("Ihre Institut für Stadtmarketing Rechnung", "a@b.de", "", "geschaeftlich"),
+    ("Fw: Rechnung Werbeschild bei Stahl", "d.stahl1990@web.de", "", "geschaeftlich"),
+    ("Rechnung Exposé Erstellung", "a@b.de", "", "geschaeftlich"),
+    ("Rechnung", "a@b.de", "Energieausweis für das Grundstück", "geschaeftlich"),
+    ("Rechnung Grundbuchauszug", "a@b.de", "", "geschaeftlich"),
+    ("Rechnung", "kanzlei@notar-mueller.de", "", "geschaeftlich"),
     ("Rechnung", "no-reply@netflix.com", "", "privat"),
     ("Rechnung und Versand zu deiner Bestellung", "bestellung@christ.de", "", "privat"),
     ("Condor Reisebestätigung", "no-answer@condor.com", "Rechnung", "privat"),
@@ -48,6 +57,10 @@ KLASSIFIZIERUNG = [
     # "christ" darf nicht in Vornamen anspringen.
     ("Rechnung", "christian.mueller@unbekannt.de", "", None),
     ("Rechnung", "christoph@fremdfirma.de", "", None),
+    # Die Immobilien-Regel darf nicht auf alltägliche Rechnungen übergreifen,
+    # nur weil dort beiläufig eine Wohnung oder ein Kauf vorkommt.
+    ("Rechnung Sofa für die Wohnung", "info@moebelhaus.de", "", None),
+    ("Rechnung Kaufvertrag Gebrauchtwagen", "info@autohaus.de", "", None),
     # Darf nicht auf "elli" in "voellig" bzw. "mer" in "kommerziell" anspringen.
     ("Rechnung", "info@voellig-unbekannt.de", "", None),
     ("Rechnung", "kontakt@kommerziell-gmbh.de", "", None),

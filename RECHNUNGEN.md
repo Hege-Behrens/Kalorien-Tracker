@@ -142,9 +142,20 @@ Die Zuordnung privat/geschäftlich läuft über zwei Musterlisten im Skript:
 trag dort deine Lieferanten und Anbieter ein, dann trifft das Skript die
 Zuordnung zuverlässig.
 
-Als geschäftlich eingetragen sind unter anderem Immoscout, ImmoWerbung,
-Meike Weitzel, APCOA, Deutsche Post sowie sämtlicher Ladestrom fürs Auto
-(`LADESTROM_MUSTER`:
+**Alles rund um Immobilien zählt geschäftlich.** Das steckt in
+`IMMOBILIEN_MUSTER` und greift nicht nur auf Firmennamen, sondern auf das
+Fachvokabular: Immobilie, Immo…, Makler, Exposé, Grundstück, Grundbuch,
+Teilungserklärung, Hausverwaltung, Energieausweis, Wertermittlung,
+Verkehrswert, Mietvertrag, Nebenkostenabrechnung, Notar, IVD, Stadtmarketing,
+IndustrialPort, Werbeschild. Damit fällt auch ein neuer Lieferant richtig,
+solange sein Betreff oder Text einen dieser Begriffe führt.
+
+Bewusst **nicht** in der Liste stehen `wohnung` und `kaufvertrag`: die kämen
+auch in privaten Rechnungen vor — Möbelkauf, Gebrauchtwagen — und würden diese
+fälschlich ins Geschäftliche ziehen. Zwei Tests halten das fest.
+
+Weiter als geschäftlich eingetragen sind unter anderem Meike Weitzel, APCOA,
+Deutsche Post sowie sämtlicher Ladestrom fürs Auto (`LADESTROM_MUSTER`:
 EnBW mobility+, Ionity, EWE Go, Shell Recharge, Aral Pulse, Allego, Tesla,
 Qwello, ladecloud … sowie Stichwörter wie Ladevorgang, Ladesäule, Wallbox).
 

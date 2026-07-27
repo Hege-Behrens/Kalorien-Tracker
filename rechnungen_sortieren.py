@@ -63,18 +63,29 @@ LADESTROM_MUSTER = [
     "maingau", "lichtblick", "tesla", "qwello", "ladecloud", "ladenetz",
 ]
 
+# Alles rund um Immobilien ist geschäftlich — das ist das Kerngeschäft.
+# Bewusst fachliche Begriffe: "wohnung" oder "kaufvertrag" stünden auch in
+# privaten Rechnungen (Möbel, Auto) und würden diese fälschlich hierher ziehen.
+IMMOBILIEN_MUSTER = [
+    "immobilie", "immo", "makler", "exposé", "expose",
+    "grundstück", "grundbuch", "teilungserklärung", "wohnungseigentum",
+    "hausverwaltung", "energieausweis", "wertermittlung", "verkehrswert",
+    "beleihungswert", "mietvertrag", "nebenkostenabrechnung",
+    "notar", "ivd", "sprengnetter", "stadtmarketing", "industrialport",
+    "werbeschild", "verkaufsschild",
+]
+
 # Absender/Stichwörter, die eine Rechnung als geschäftlich kennzeichnen.
 # Diese Liste ist der Stellhebel — hier trägst du deine Lieferanten ein.
 GESCHAEFTLICH_MUSTER = [
     "datev", "telekom.de", "vodafone", "1und1", "ionos", "strato",
     "aws", "amazon web services", "google cloud", "microsoft", "adobe",
-    "immoscout", "is24", "immobilienscout", "immowelt", "immowerbung",
-    "sprengnetter", "haufe", "apcoa",
+    "is24", "haufe", "apcoa",
     "meike weitzel", "weitzel",
-    "steuerberater", "kanzlei", "notar", "ihk", "berufsgenossenschaft",
-    "bürobedarf", "makler",
+    "steuerberater", "kanzlei", "ihk", "berufsgenossenschaft",
+    "bürobedarf",
     "deutsche post", "deutschepost",
-] + LADESTROM_MUSTER
+] + LADESTROM_MUSTER + IMMOBILIEN_MUSTER
 
 # ProVend-Post wird nur weggeräumt: kein Steuerordner, kein Entwurf, kein Versand.
 # Wird gegen Absender UND Empfänger geprüft, damit auch Rechnungen erfasst
