@@ -46,14 +46,30 @@ RECHNUNG_KEYWORDS = [
     "rechnungsnummer", "faktura", "gutschrift", "kassenbon",
 ]
 
+# Ladestrom fürs Auto zählt geschäftlich — Anbieter und Stichwörter.
+LADESTROM_MUSTER = [
+    "ladestrom", "ladevorgang", "ladekarte", "ladesäule", "wallbox",
+    "charging", "charge point", "chargepoint", "supercharger",
+    "enbw mobility", "ionity", "ewe go", "shell recharge", "aral pulse",
+    "allego", "plugsurfing", "elli.eu", "we charge", "mer germany", "eon drive",
+    "maingau", "lichtblick", "tesla",
+]
+
 # Absender/Stichwörter, die eine Rechnung als geschäftlich kennzeichnen.
 # Diese Liste ist der Stellhebel — hier trägst du deine Lieferanten ein.
 GESCHAEFTLICH_MUSTER = [
     "datev", "telekom.de", "vodafone", "1und1", "ionos", "strato",
     "aws", "amazon web services", "google cloud", "microsoft", "adobe",
-    "immoscout", "is24", "immowelt", "sprengnetter", "haufe",
+    "immoscout", "is24", "immobilienscout", "immowelt", "sprengnetter", "haufe",
+    "meike weitzel", "weitzel",
     "steuerberater", "kanzlei", "notar", "ihk", "berufsgenossenschaft",
     "bürobedarf", "makler", "provend",
+] + LADESTROM_MUSTER
+
+# Rechnungen dieser Absender werden nur in Gmail einsortiert: keine Ablage im
+# Steuerordner, kein Anhang im Monatsentwurf an DATEV.
+NICHT_HOCHLADEN_MUSTER = [
+    "provend",
 ]
 
 # Absender/Stichwörter, die eine Rechnung als privat kennzeichnen.
@@ -116,9 +132,39 @@ def find_attachments(msg):
 
 def is_rechnung(subject, sender, body, attachments):
     """Eine Mail gilt als Rechnung, wenn sie ein Stichwort UND einen Beleg trägt."""
+    # Hier bewusst Substring statt Wortanfang: bei Komposita wie
+    # "Honorarrechnung" oder "Schlussrechnung" steht das Stichwort hinten.
     haystack = f"{subject} {sender} {body[:2000]}".lower()
     has_keyword = any(kw in haystack for kw in RECHNUNG_KEYWORDS)
     return has_keyword and bool(attachments)
+
+
+def matcht(haystack, muster):
+    """Suche ein Muster ab Wortanfang.
+
+    Ein reiner Substring-Vergleich wäre zu grob: "elli" steckt sonst in
+    "voellig", "mer" in "kommerziell". Bei Steuerunterlagen ist eine falsche
+    Zuordnung teurer als eine, die durchrutscht und geprüft werden muss.
+
+    Das Wortende bleibt bewusst offen, sonst fielen deutsche Komposita
+    heraus: "Ladestromabrechnung" soll auf "ladestrom" anspringen.
+
+    Leerzeichen im Muster matchen jedes übliche Trennzeichen, denn Firmen
+    schreiben sich mal "ewe go", mal "ewe-go.de", mal "ewego".
+    """
+    teile = [re.escape(t) for t in muster.split()]
+    pattern = r"(?<!\w)" + r"[\s._-]*".join(teile)
+    return re.search(pattern, haystack) is not None
+
+
+def matcht_eines(haystack, muster_liste):
+    return any(matcht(haystack, m) for m in muster_liste)
+
+
+def nur_sortieren(subject, sender, body):
+    """Prüfe, ob die Rechnung nur einsortiert und nicht hochgeladen werden soll."""
+    haystack = f"{subject} {sender} {body[:2000]}".lower()
+    return matcht_eines(haystack, NICHT_HOCHLADEN_MUSTER)
 
 
 def classify(subject, sender, body):
@@ -129,9 +175,9 @@ def classify(subject, sender, body):
     bei Steuerunterlagen ist eine falsche Zuordnung teurer als eine offene.
     """
     haystack = f"{subject} {sender} {body[:2000]}".lower()
-    if any(m in haystack for m in GESCHAEFTLICH_MUSTER):
+    if matcht_eines(haystack, GESCHAEFTLICH_MUSTER):
         return "geschaeftlich"
-    if any(m in haystack for m in PRIVAT_MUSTER):
+    if matcht_eines(haystack, PRIVAT_MUSTER):
         return "privat"
     return None
 
@@ -225,20 +271,25 @@ def build_draft(rechnungen, jahr, monat, absender):
     msg["Subject"] = f"Rechnungseingang {monatsname} {jahr}"
     msg["Date"] = email.utils.formatdate(localtime=True)
 
-    geschaeftlich = [r for r in rechnungen if r["kategorie"] == "geschaeftlich"]
-    privat = [r for r in rechnungen if r["kategorie"] == "privat"]
-    offen = [r for r in rechnungen if r["kategorie"] is None]
+    # Rechnungen, die nur einsortiert werden, gehören nicht in die Übermittlung.
+    zu_uebermitteln = [r for r in rechnungen if not r["nur_sortieren"]]
+    ausgenommen = [r for r in rechnungen if r["nur_sortieren"]]
+
+    geschaeftlich = [r for r in zu_uebermitteln if r["kategorie"] == "geschaeftlich"]
+    privat = [r for r in zu_uebermitteln if r["kategorie"] == "privat"]
+    offen = [r for r in zu_uebermitteln if r["kategorie"] is None]
 
     lines = [f"Rechnungen {monatsname} {jahr}", ""]
 
-    def block(titel, eintraege):
+    def block(titel, eintraege, mit_anhang=True):
         lines.append(f"{titel} ({len(eintraege)})")
         if not eintraege:
             lines.append("  – keine –")
         for r in eintraege:
             lines.append(f"  • {r['datum']:%d.%m.%Y}  {r['absender']}  –  {r['betreff']}")
-            for name, _ in r["attachments"]:
-                lines.append(f"      Anhang: {name}")
+            if mit_anhang:
+                for name, _ in r["attachments"]:
+                    lines.append(f"      Anhang: {name}")
         lines.append("")
 
     block("GESCHÄFTLICH", geschaeftlich)
@@ -246,10 +297,15 @@ def build_draft(rechnungen, jahr, monat, absender):
     if offen:
         block("NOCH ZU PRÜFEN", offen)
 
-    lines.append(f"Gesamt: {len(rechnungen)} Rechnung(en)")
+    lines.append(f"Gesamt: {len(zu_uebermitteln)} Rechnung(en)")
+
+    if ausgenommen:
+        lines.append("")
+        block("NICHT ÜBERMITTELT – nur einsortiert", ausgenommen, mit_anhang=False)
+
     msg.set_content("\n".join(lines))
 
-    for r in rechnungen:
+    for r in zu_uebermitteln:
         for name, payload in r["attachments"]:
             suffix = Path(name).suffix.lower()
             maintype, subtype = {
@@ -302,6 +358,7 @@ def collect_rechnungen(imap, jahr, monat):
             "absender": sender,
             "datum": datum,
             "kategorie": classify(subject, sender, body),
+            "nur_sortieren": nur_sortieren(subject, sender, body),
             "attachments": attachments,
         })
 
@@ -343,10 +400,13 @@ def run(username, password, jahr, monat, steuer_dir, dry_run, skip_draft):
             print(f"      Absender:  {r['absender'][:60]}")
             print(f"      Kategorie: {beschriftung}")
 
-            for name, payload in r["attachments"]:
-                dateiname = f"{r['datum']:%Y-%m-%d}_{sanitize(r['absender'], 30)}_{sanitize(Path(name).stem)}{Path(name).suffix}"
-                pfad = save_attachment(directory, dateiname, payload, dry_run=dry_run)
-                print(f"      Abgelegt:  {pfad}")
+            if r["nur_sortieren"]:
+                print("      Ablage:    übersprungen (nur sortieren, kein Upload)")
+            else:
+                for name, payload in r["attachments"]:
+                    dateiname = f"{r['datum']:%Y-%m-%d}_{sanitize(r['absender'], 30)}_{sanitize(Path(name).stem)}{Path(name).suffix}"
+                    pfad = save_attachment(directory, dateiname, payload, dry_run=dry_run)
+                    print(f"      Abgelegt:  {pfad}")
 
             if label:
                 if not dry_run:

@@ -62,10 +62,40 @@ Die Zuordnung privat/geschäftlich läuft über zwei Musterlisten im Skript:
 trag dort deine Lieferanten und Anbieter ein, dann trifft das Skript die
 Zuordnung zuverlässig.
 
+Als geschäftlich eingetragen sind unter anderem Immoscout, Meike Weitzel und
+sämtlicher Ladestrom fürs Auto (`LADESTROM_MUSTER`: EnBW mobility+, Ionity,
+EWE Go, Shell Recharge, Aral Pulse, Allego, Tesla … sowie Stichwörter wie
+Ladevorgang, Ladesäule, Wallbox).
+
 Passt eine Rechnung auf keine der beiden Listen, wird **nicht geraten**. Sie landet
 in `Steuer/<Jahr>/_Zu_pruefen`, bekommt kein Gmail-Label und erscheint im Entwurf
 unter „NOCH ZU PRÜFEN". Bei Steuerunterlagen ist eine offene Zuordnung billiger
 als eine falsche.
+
+## Nur sortieren, nicht hochladen
+
+Absender in `NICHT_HOCHLADEN_MUSTER` — aktuell **Provend** — werden in Gmail
+ganz normal einsortiert, aber:
+
+- die Belege landen **nicht** im iCloud-Steuerordner
+- sie hängen **nicht** am Entwurf an DATEV
+
+Im Entwurf erscheinen sie am Ende unter „NICHT ÜBERMITTELT – nur einsortiert",
+damit im Monatsabschluss sichtbar bleibt, dass sie bewusst ausgelassen wurden
+und nicht etwa vergessen.
+
+## Tests
+
+Die Erkennungsregeln sind durch Tests abgesichert:
+
+```bash
+python3 test_rechnungen.py
+```
+
+Wenn du die Musterlisten erweiterst, trag dort am besten einen Testfall nach.
+Die Muster greifen ab Wortanfang und tolerieren Trennzeichen — `ewe go` findet
+auch `ewe-go.de`, `ladestrom` auch `Ladestromabrechnung`, aber `elli` nicht
+mehr das `elli` in `voellig`.
 
 ## Regelmäßig laufen lassen
 
