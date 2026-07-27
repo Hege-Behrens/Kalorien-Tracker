@@ -76,23 +76,60 @@ Sieht das Ergebnis richtig aus, dann echt laufen lassen:
 python3 rechnungen_sortieren.py
 ```
 
-Ein anderer Monat:
+Ohne weitere Angaben geht das Skript über den **gesamten Bestand** in `INBOX`
+und `INBOX/Icloud Archiv`. Nur ein einzelner Monat:
 
 ```bash
 python3 rechnungen_sortieren.py --jahr 2026 --monat 6
 ```
 
+## Stichtag: was übermittelt wird
+
+Abgelegt und einsortiert wird **jede** gefundene Rechnung, egal wie alt.
+
+In den Entwurf an DATEV kommen dagegen nur Rechnungen **ab dem Stichtag**,
+aktuell der **1. Juni 2026** (`STICHTAG` im Skript). Ältere sind dort bereits
+eingereicht — sie werden nur weggeräumt. Das Skript meldet beim Lauf, wie viele
+das betraf. Anderer Stichtag für einen einzelnen Lauf:
+
+```bash
+python3 rechnungen_sortieren.py --stichtag 01.01.2026
+```
+
+## Große Anhänge: mehrere Mails
+
+Übersteigen die Anhänge **19,9 MB**, legt das Skript eine weitere Mail an und
+verteilt die restlichen Belege dorthin. Der Betreff wird dann nummeriert:
+„Rechnungseingang ab Juni 2026 (Teil 1 von 3)". Eine einzelne Rechnung wird nie
+auseinandergerissen — ihre Belege bleiben zusammen in einer Mail.
+
+Zwei Grenzen wirken dabei zusammen:
+
+| Konstante | Wert | Zweck |
+|---|---|---|
+| `MAX_ANHANG_BYTES` | 19,9 MB | die gewünschte Regel, gemessen an der Rohgröße der Dateien |
+| `MAX_MAIL_BYTES` | 24 MB | Schutzgrenze für die fertige Mail |
+
+Die zweite Grenze ist nötig, weil Anhänge in einer Mail Base64-kodiert werden
+und dabei **rund 35 % größer** werden. 19,9 MB Dateien ergäben etwa 27 MB
+Mailgröße — Gmail nimmt aber nur 25 MB an. In der Praxis greift daher meist die
+Schutzgrenze zuerst und teilt bei ungefähr 17,5 MB Rohdaten.
+
+Wer die volle 19,9-MB-Regel ohne Rücksicht darauf will, setzt `MAX_MAIL_BYTES`
+hoch — dann können die Mails allerdings am Gmail-Limit scheitern.
+
 ## Was das Skript macht
 
-1. durchsucht den Posteingang nach Rechnungen des Monats
+1. durchsucht Posteingang und iCloud-Archiv nach Rechnungen
 2. ordnet jede Rechnung privat oder geschäftlich zu
 3. legt die Anhänge ab unter
    `Eingangsrechnungen/<Jahr>/<MM_Monat>/Privat` bzw. `.../Geschäftlich`
    — benannt nach dem Muster `2026-07-03_Absender_Rechnung.pdf`
 4. setzt in Gmail das Label `Rechnungen/Privat` bzw. `Rechnungen/Geschäftlich`
    — ProVend-Rechnungen stattdessen `ProVend Deutschland/Rechnungen an ProVend`
-5. legt im Entwürfe-Ordner eine Monatsübersicht an, adressiert an den
-   DATEV-Rechnungseingang, mit allen Belegen im Anhang (ohne ProVend)
+5. legt im Entwürfe-Ordner eine Übersicht an, adressiert an den
+   DATEV-Rechnungseingang, mit den Belegen ab Stichtag im Anhang
+   (ohne ProVend) — bei Bedarf auf mehrere Mails verteilt
 
 ## Erkennungsregeln
 

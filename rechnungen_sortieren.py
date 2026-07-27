@@ -41,6 +41,10 @@ LABEL_PROVEND_RECHNUNGEN = "ProVend Deutschland/Rechnungen an ProVend"
 # Gmail nennt den Entwurfsordner je nach Spracheinstellung anders.
 DRAFTS_CANDIDATES = ["[Gmail]/Entwürfe", "[Gmail]/Drafts", "[Google Mail]/Entwürfe"]
 
+# Durchsuchte Ordner. Das iCloud-Archiv ist ein Unterlabel von INBOX und wird
+# von einer reinen INBOX-Suche nicht erfasst.
+STANDARD_ORDNER = ["INBOX", "INBOX/Icloud Archiv"]
+
 # Anhänge, die als Rechnungsbeleg in Frage kommen. XML deckt ZUGFeRD/XRechnung ab.
 BELEG_SUFFIXE = {".pdf", ".xml", ".jpg", ".jpeg", ".png", ".heic"}
 
@@ -227,6 +231,27 @@ EINGANG_ORDNER = "Eingangsrechnungen"
 # Ab diesem Jahr wird die Ablage geführt.
 STARTJAHR = 2025
 
+# Ältere Rechnungen werden abgelegt und einsortiert, kommen aber nicht mehr in
+# den Entwurf an DATEV — die sind dort bereits eingereicht.
+STICHTAG = datetime(2026, 6, 1, tzinfo=timezone.utc)
+
+# Übersteigen die Anhänge diese Grenze, wird eine weitere Mail angelegt.
+#
+# Achtung: Das ist die Rohgröße der Dateien, so wie der Finder sie anzeigt.
+# In der Mail werden Anhänge Base64-kodiert und dabei rund ein Drittel größer.
+# 19,9 MB Rohdaten ergeben also ca. 26,5 MB Mailgröße — und Gmail nimmt nur
+# 25 MB an. MAX_MAIL_BYTES fängt das ab: greift die harte Grenze zuerst, wird
+# entsprechend früher geteilt.
+MAX_ANHANG_BYTES = int(19.9 * 1024 * 1024)
+
+# Harte Obergrenze für die fertige Mail inklusive Base64-Aufschlag (Gmail: 25 MB).
+MAX_MAIL_BYTES = 24 * 1024 * 1024
+
+# Base64 macht aus 3 Byte 4 Zeichen (Faktor 1,333) und bricht zusätzlich alle
+# 76 Zeichen um. Gemessen liegt der reale Aufschlag bei rund 1,35; mit 1,37
+# bleibt die Schätzung auf der sicheren Seite.
+BASE64_FAKTOR = 1.37
+
 KATEGORIE_ORDNER = {
     "geschaeftlich": "Geschäftlich",
     "privat": "Privat",
@@ -288,24 +313,64 @@ def find_drafts_folder(imap):
     return DRAFTS_CANDIDATES[1]
 
 
-def build_draft(rechnungen, jahr, monat, absender):
-    """Baue die Monats-Übersichtsmail mit allen Belegen als Anhang."""
-    monatsname = MONATSNAMEN[monat - 1]
+def anhang_groesse(rechnung):
+    return sum(len(payload) for _, payload in rechnung["attachments"])
+
+
+def teile_nach_groesse(rechnungen):
+    """Verteile Rechnungen auf Pakete, die je unter beiden Grenzen bleiben.
+
+    Eine Rechnung wird nie auseinandergerissen — ihre Belege bleiben zusammen
+    in einer Mail. Passt eine einzelne Rechnung in kein Paket, bekommt sie
+    ihre eigene Mail; das meldet der Aufrufer dann als Warnung.
+    """
+    pakete = []
+    aktuell = []
+    roh = 0
+
+    for r in sorted(rechnungen, key=lambda x: x["datum"]):
+        groesse = anhang_groesse(r)
+        passt_roh = roh + groesse <= MAX_ANHANG_BYTES
+        passt_mail = (roh + groesse) * BASE64_FAKTOR <= MAX_MAIL_BYTES
+
+        if aktuell and not (passt_roh and passt_mail):
+            pakete.append(aktuell)
+            aktuell, roh = [], 0
+
+        aktuell.append(r)
+        roh += groesse
+
+    if aktuell:
+        pakete.append(aktuell)
+    return pakete
+
+
+def build_draft(rechnungen, absender, titel, teil=1, gesamt=1):
+    """Baue eine Übermittlungsmail mit den Belegen dieses Pakets im Anhang.
+
+    ProVend wird hier noch einmal herausgefiltert, obwohl der Aufrufer das
+    bereits tut: die Regel "geht nie an DATEV" soll nicht an einer einzigen
+    Stelle hängen.
+    """
+    zu_uebermitteln = [r for r in rechnungen if not r["provend"]]
 
     msg = EmailMessage()
     msg["To"] = RECHNUNGSEINGANG
     msg["From"] = absender
-    msg["Subject"] = f"Rechnungseingang {monatsname} {jahr}"
+    betreff = f"Rechnungseingang {titel}"
+    if gesamt > 1:
+        betreff += f" (Teil {teil} von {gesamt})"
+    msg["Subject"] = betreff
     msg["Date"] = email.utils.formatdate(localtime=True)
-
-    # ProVend wird nur weggeräumt und taucht in der Übermittlung nicht auf.
-    zu_uebermitteln = [r for r in rechnungen if not r["provend"]]
 
     geschaeftlich = [r for r in zu_uebermitteln if r["kategorie"] == "geschaeftlich"]
     privat = [r for r in zu_uebermitteln if r["kategorie"] == "privat"]
     offen = [r for r in zu_uebermitteln if r["kategorie"] is None]
 
-    lines = [f"Rechnungen {monatsname} {jahr}", ""]
+    kopf = f"Rechnungen {titel}"
+    if gesamt > 1:
+        kopf += f" – Teil {teil} von {gesamt}"
+    lines = [kopf, ""]
 
     def block(titel, eintraege):
         lines.append(f"{titel} ({len(eintraege)})")
@@ -339,22 +404,29 @@ def build_draft(rechnungen, jahr, monat, absender):
     return msg
 
 
-def collect_rechnungen(imap, jahr, monat):
-    """Hole alle Rechnungen des angegebenen Monats aus dem Posteingang."""
-    imap.select("INBOX")
+def collect_rechnungen(imap, ordner, seit=None, bis=None):
+    """Hole alle Rechnungen eines Ordners, optional auf einen Zeitraum begrenzt."""
+    status, _ = imap.select(f'"{ordner}"', readonly=True)
+    if status != "OK":
+        print(f"  Ordner '{ordner}' nicht gefunden – übersprungen.")
+        return []
 
-    # IMAP SINCE/BEFORE arbeitet tagesgenau, daher Monatsgrenzen aufspannen.
-    start = datetime(jahr, monat, 1)
-    end = datetime(jahr + (monat == 12), (monat % 12) + 1, 1)
-    criteria = f'(SINCE "{start:%d-%b-%Y}" BEFORE "{end:%d-%b-%Y}")'
+    teile = []
+    if seit:
+        teile.append(f'SINCE "{seit:%d-%b-%Y}"')
+    if bis:
+        teile.append(f'BEFORE "{bis:%d-%b-%Y}"')
+    criteria = f"({' '.join(teile)})" if teile else "ALL"
 
-    status, data = imap.search(None, criteria)
+    # UID statt Sequenznummer: die bleibt gültig, wenn zwischendurch ein
+    # anderer Ordner selektiert wird.
+    status, data = imap.uid("SEARCH", None, criteria)
     if status != "OK" or not data[0]:
         return []
 
     rechnungen = []
     for uid in data[0].split():
-        status, msg_data = imap.fetch(uid, "(RFC822)")
+        status, msg_data = imap.uid("FETCH", uid, "(RFC822)")
         if status != "OK" or not msg_data or not isinstance(msg_data[0], tuple):
             continue
 
@@ -377,6 +449,7 @@ def collect_rechnungen(imap, jahr, monat):
 
         rechnungen.append({
             "uid": uid,
+            "ordner": ordner,
             "betreff": subject or "(ohne Betreff)",
             "absender": sender,
             "datum": datum,
@@ -388,7 +461,12 @@ def collect_rechnungen(imap, jahr, monat):
     return rechnungen
 
 
-def run(username, password, jahr, monat, steuer_dir, dry_run, skip_draft):
+def mb(anzahl_bytes):
+    return f"{anzahl_bytes / 1024 / 1024:.1f} MB"
+
+
+def run(username, password, ordner_liste, seit, bis, stichtag,
+        steuer_dir, dry_run, skip_draft, titel):
     prefix = "[Testlauf] " if dry_run else ""
     print(f"{prefix}Verbinde mit {IMAP_HOST} als {username} …")
 
@@ -402,15 +480,18 @@ def run(username, password, jahr, monat, steuer_dir, dry_run, skip_draft):
             ensure_label(imap, LABEL_PROVEND)
             ensure_label(imap, LABEL_PROVEND_RECHNUNGEN)
 
-        rechnungen = collect_rechnungen(imap, jahr, monat)
-        print(f"{len(rechnungen)} Rechnung(en) für {monat:02d}/{jahr} gefunden.\n")
+        rechnungen = []
+        for ordner in ordner_liste:
+            gefunden = collect_rechnungen(imap, ordner, seit, bis)
+            print(f"  {ordner}: {len(gefunden)} Rechnung(en)")
+            rechnungen.extend(gefunden)
+
+        rechnungen.sort(key=lambda r: r["datum"])
+        print(f"\n{len(rechnungen)} Rechnung(en) insgesamt.\n")
 
         if not rechnungen:
             print("Nichts zu sortieren.")
-            if not skip_draft:
-                print("Erstelle trotzdem einen leeren Monatsentwurf.")
-            else:
-                return
+            return
 
         for r in rechnungen:
             kategorie = r["kategorie"]
@@ -442,7 +523,9 @@ def run(username, password, jahr, monat, steuer_dir, dry_run, skip_draft):
 
             if label:
                 if not dry_run:
-                    imap.copy(r["uid"], f'"{label}"')
+                    # Kopieren geht nur aus dem Ordner, in dem die Mail liegt.
+                    imap.select(f'"{r["ordner"]}"')
+                    imap.uid("COPY", r["uid"], f'"{label}"')
                 print(f"      Gmail:     {label}")
             else:
                 print("      Gmail:     kein Label (Kategorie unklar)")
@@ -452,26 +535,69 @@ def run(username, password, jahr, monat, steuer_dir, dry_run, skip_draft):
         if provend:
             print(
                 f"{len(provend)} ProVend-Rechnung(en) nur einsortiert "
-                f"unter '{LABEL_PROVEND_RECHNUNGEN}' – nicht im Entwurf.\n"
+                f"unter '{LABEL_PROVEND_RECHNUNGEN}' – nicht im Entwurf."
             )
 
         if skip_draft:
             return
 
-        draft = build_draft(rechnungen, jahr, monat, username)
-        if dry_run:
-            print(f"[Testlauf] Entwurf wäre erstellt: {draft['Subject']} → {RECHNUNGSEINGANG}")
+        # ProVend geht nie raus, und alles vor dem Stichtag ist bereits
+        # eingereicht – beides wird abgelegt, aber nicht übermittelt.
+        uebermitteln = [
+            r for r in rechnungen
+            if not r["provend"] and r["datum"] >= stichtag
+        ]
+        alt = [
+            r for r in rechnungen
+            if not r["provend"] and r["datum"] < stichtag
+        ]
+        if alt:
+            print(
+                f"{len(alt)} Rechnung(en) vor {stichtag:%d.%m.%Y} nur abgelegt "
+                f"und einsortiert – nicht im Entwurf."
+            )
+        print()
+
+        if not uebermitteln:
+            print(f"Keine Rechnungen ab {stichtag:%d.%m.%Y} – kein Entwurf nötig.")
             return
 
-        drafts_folder = find_drafts_folder(imap)
-        imap.append(
-            f'"{drafts_folder}"',
-            r"\Draft",
-            imaplib.Time2Internaldate(time.time()),
-            draft.as_bytes(),
+        pakete = teile_nach_groesse(uebermitteln)
+        gesamt_bytes = sum(anhang_groesse(r) for r in uebermitteln)
+        print(
+            f"{len(uebermitteln)} Rechnung(en) ab {stichtag:%d.%m.%Y}, "
+            f"{mb(gesamt_bytes)} Anhänge → {len(pakete)} Mail(s)."
         )
-        print(f"Entwurf erstellt in '{drafts_folder}': {draft['Subject']}")
-        print(f"Empfänger: {RECHNUNGSEINGANG}")
+
+        drafts_folder = None if dry_run else find_drafts_folder(imap)
+
+        for nummer, paket in enumerate(pakete, 1):
+            draft = build_draft(paket, username, titel, nummer, len(pakete))
+            roh = sum(anhang_groesse(r) for r in paket)
+            fertig = len(draft.as_bytes())
+
+            print(f"\n  Teil {nummer}/{len(pakete)}: {len(paket)} Rechnung(en), "
+                  f"{mb(roh)} Anhänge, {mb(fertig)} Mailgröße")
+
+            if fertig > MAX_MAIL_BYTES:
+                print(f"  WARNUNG: überschreitet {mb(MAX_MAIL_BYTES)} – "
+                      f"Gmail lehnt den Versand womöglich ab.")
+
+            if dry_run:
+                print(f"  [Testlauf] Entwurf wäre: {draft['Subject']}")
+                continue
+
+            imap.append(
+                f'"{drafts_folder}"',
+                r"\Draft",
+                imaplib.Time2Internaldate(time.time()),
+                draft.as_bytes(),
+            )
+            print(f"  Entwurf erstellt: {draft['Subject']}")
+
+        if not dry_run:
+            print(f"\n{len(pakete)} Entwurf/Entwürfe in '{drafts_folder}' "
+                  f"an {RECHNUNGSEINGANG}")
 
 
 def main():
@@ -479,15 +605,38 @@ def main():
     parser = argparse.ArgumentParser(
         description="Rechnungen aus Gmail sortieren und in iCloud ablegen.",
     )
-    parser.add_argument("--jahr", type=int, default=heute.year, help="Jahr (Standard: aktuelles)")
-    parser.add_argument("--monat", type=int, default=heute.month, help="Monat 1-12 (Standard: aktueller)")
+    parser.add_argument("--jahr", type=int, help="Nur diesen Monat verarbeiten (mit --monat)")
+    parser.add_argument("--monat", type=int, help="Monat 1-12, zusammen mit --jahr")
+    parser.add_argument("--ordner", action="append", help="Zu durchsuchender Ordner (mehrfach möglich)")
+    parser.add_argument("--stichtag", help="Ab diesem Datum wird übermittelt, Format TT.MM.JJJJ")
     parser.add_argument("--steuer-dir", help="Pfad zum iCloud-Steuerordner")
     parser.add_argument("--dry-run", action="store_true", help="Nur anzeigen, nichts schreiben")
-    parser.add_argument("--kein-entwurf", action="store_true", help="Monatsentwurf überspringen")
+    parser.add_argument("--kein-entwurf", action="store_true", help="Entwürfe überspringen")
     args = parser.parse_args()
 
-    if not 1 <= args.monat <= 12:
+    if (args.monat is None) != (args.jahr is None):
+        parser.error("--monat und --jahr nur gemeinsam verwenden")
+    if args.monat is not None and not 1 <= args.monat <= 12:
         parser.error("--monat muss zwischen 1 und 12 liegen")
+
+    stichtag = STICHTAG
+    if args.stichtag:
+        try:
+            stichtag = datetime.strptime(args.stichtag, "%d.%m.%Y").replace(tzinfo=timezone.utc)
+        except ValueError:
+            parser.error("--stichtag im Format TT.MM.JJJJ angeben, z. B. 01.06.2026")
+
+    # Ohne --monat läuft das Skript über den gesamten Bestand: alles wird
+    # abgelegt und einsortiert, übermittelt wird nur ab Stichtag.
+    if args.monat is None:
+        seit = bis = None
+        titel = f"ab {stichtag:%B %Y}"
+    else:
+        seit = datetime(args.jahr, args.monat, 1)
+        bis = datetime(args.jahr + (args.monat == 12), (args.monat % 12) + 1, 1)
+        titel = f"{MONATSNAMEN[args.monat - 1]} {args.jahr}"
+
+    ordner_liste = args.ordner or STANDARD_ORDNER
 
     username = os.environ.get("GMAIL_EMAIL", "hegebehrens.rechnung@gmail.com")
     password = os.environ.get("GMAIL_APP_PASSWORD", "")
@@ -511,11 +660,14 @@ def main():
     run(
         username=username,
         password=password,
-        jahr=args.jahr,
-        monat=args.monat,
+        ordner_liste=ordner_liste,
+        seit=seit,
+        bis=bis,
+        stichtag=stichtag,
         steuer_dir=steuer_dir,
         dry_run=args.dry_run,
         skip_draft=args.kein_entwurf,
+        titel=titel,
     )
 
 

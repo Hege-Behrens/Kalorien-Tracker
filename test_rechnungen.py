@@ -10,11 +10,15 @@ from datetime import datetime
 from pathlib import Path
 
 from rechnungen_sortieren import (
+    MAX_ANHANG_BYTES,
+    MAX_MAIL_BYTES,
+    anhang_groesse,
     build_draft,
     classify,
     is_rechnung,
     ist_provend,
     target_dir,
+    teile_nach_groesse,
 )
 
 
@@ -57,6 +61,72 @@ PROVEND = [
 ]
 
 
+def rechnung(tag, mb_groesse, provend=False, kategorie="geschaeftlich"):
+    """Testrechnung mit einem Anhang der gewünschten Größe."""
+    return {
+        "kategorie": kategorie, "provend": provend,
+        "datum": datetime(2026, 6, tag), "absender": f"a{tag}@b.de",
+        "betreff": f"Rechnung {tag}",
+        "attachments": [(f"beleg{tag}.pdf", b"x" * int(mb_groesse * 1024 * 1024))],
+    }
+
+
+def pruefe_aufteilung():
+    """Anhänge über der Grenze müssen auf mehrere Mails verteilt werden."""
+    fehler = 0
+
+    # Drei Rechnungen à 8 MB = 24 MB Rohdaten. Über der 19,9-MB-Grenze,
+    # muss also geteilt werden.
+    pakete = teile_nach_groesse([rechnung(1, 8), rechnung(2, 8), rechnung(3, 8)])
+    if len(pakete) < 2:
+        print(f"FEHL  24 MB ergaben {len(pakete)} Paket(e), erwartet mindestens 2")
+        fehler += 1
+
+    # Kein Paket darf eine der beiden Grenzen reißen.
+    for i, paket in enumerate(pakete, 1):
+        roh = sum(anhang_groesse(r) for r in paket)
+        if roh > MAX_ANHANG_BYTES and len(paket) > 1:
+            print(f"FEHL  Paket {i}: {roh} Byte über der Rohgrenze {MAX_ANHANG_BYTES}")
+            fehler += 1
+        fertig = len(build_draft(paket, "a@b.de", "Test", i, len(pakete)).as_bytes())
+        if fertig > MAX_MAIL_BYTES and len(paket) > 1:
+            print(f"FEHL  Paket {i}: Mail {fertig} Byte über {MAX_MAIL_BYTES}")
+            fehler += 1
+
+    # Der eigentliche Zweck: keine versandfertige Mail über Gmails 25-MB-Limit.
+    GMAIL_LIMIT = 25 * 1024 * 1024
+    viele = [rechnung(tag, 7) for tag in range(1, 8)]   # 49 MB Rohdaten
+    for i, paket in enumerate(teile_nach_groesse(viele), 1):
+        fertig = len(build_draft(paket, "a@b.de", "Test", i, 9).as_bytes())
+        if fertig > GMAIL_LIMIT and len(paket) > 1:
+            print(f"FEHL  Paket {i} versandfertig {fertig} Byte über Gmail-Limit")
+            fehler += 1
+
+    # Keine Rechnung darf verloren gehen oder doppelt auftauchen.
+    verteilt = [r["betreff"] for paket in pakete for r in paket]
+    if sorted(verteilt) != ["Rechnung 1", "Rechnung 2", "Rechnung 3"]:
+        print(f"FEHL  Rechnungen nach Aufteilung: {sorted(verteilt)}")
+        fehler += 1
+
+    # Was zusammen unter der Grenze bleibt, gehört in eine einzige Mail.
+    klein = teile_nach_groesse([rechnung(4, 0.5), rechnung(5, 0.5)])
+    if len(klein) != 1:
+        print(f"FEHL  1 MB ergab {len(klein)} Pakete, erwartet 1")
+        fehler += 1
+
+    # Teil-Nummerierung im Betreff
+    mehrteilig = build_draft([rechnung(6, 0.1)], "a@b.de", "Juni 2026", 2, 3)
+    if "Teil 2 von 3" not in mehrteilig["Subject"]:
+        print(f"FEHL  Betreff ohne Teilangabe: {mehrteilig['Subject']}")
+        fehler += 1
+    einteilig = build_draft([rechnung(7, 0.1)], "a@b.de", "Juni 2026", 1, 1)
+    if "Teil" in einteilig["Subject"]:
+        print(f"FEHL  Einzelmail trägt Teilangabe: {einteilig['Subject']}")
+        fehler += 1
+
+    return fehler
+
+
 def pruefe_ablagepfad():
     """Eingangsrechnungen liegen nach Jahr, Monat und Kategorie."""
     basis = Path("/Steuer")
@@ -97,7 +167,7 @@ def pruefe_entwurf():
             "attachments": [("provend.pdf", b"%PDF-1.4")],
         },
     ]
-    draft = build_draft(rechnungen, 2026, 8, "hegebehrens.rechnung@gmail.com")
+    draft = build_draft(rechnungen, "hegebehrens.rechnung@gmail.com", "August 2026")
     text = draft.get_body(preferencelist=("plain",)).get_content()
     anhaenge = [p.get_filename() for p in draft.iter_attachments()]
 
@@ -137,8 +207,9 @@ def main():
 
     fehler += pruefe_entwurf()
     fehler += pruefe_ablagepfad()
+    fehler += pruefe_aufteilung()
 
-    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(PROVEND) + 6
+    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(PROVEND) + 12
     if fehler:
         print(f"\n{fehler} von {gesamt} Tests fehlgeschlagen.")
         sys.exit(1)
