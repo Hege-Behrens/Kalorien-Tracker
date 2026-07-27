@@ -5,6 +5,48 @@ im iCloud-Steuerordner ab und erstellt den Monatsentwurf an den Rechnungseingang
 
 Das Skript muss **lokal auf dem Mac** laufen, auf dem iCloud Drive eingerichtet ist.
 
+## Ordnerstruktur
+
+Alle Rechnungen, die **an dich** gehen, liegen unter `Eingangsrechnungen`,
+unterteilt nach Jahr und Monat:
+
+```
+iCloud Drive/Steuer/
+└── Eingangsrechnungen/
+    ├── 2025/
+    │   ├── 01_Januar/
+    │   │   ├── Geschäftlich/
+    │   │   └── Privat/
+    │   ├── 02_Februar/
+    │   …
+    │   └── 12_Dezember/
+    └── 2026/
+        …
+```
+
+Die Monatsnummer steht vorn, damit die Ordner chronologisch und nicht
+alphabetisch sortieren — sonst käme April vor Februar.
+
+Struktur ab 2025 bis zum laufenden Jahr anlegen:
+
+```bash
+python3 ordner_anlegen.py
+```
+
+Das Skript ist wiederholbar: vorhandene Ordner und Dateien bleiben unberührt,
+es ergänzt nur was fehlt. Ein neues Jahr legst du später mit demselben Befehl
+an. Vorher ansehen, was passieren würde:
+
+```bash
+python3 ordner_anlegen.py --dry-run
+```
+
+Rechnungen, deren Zuordnung unklar ist, landen im jeweiligen Monat unter
+`_Zu_pruefen`. Dieser Ordner entsteht nur, wenn er gebraucht wird.
+
+Ausgangsrechnungen an ProVend liegen bewusst **nicht** hier — die werden nur
+in Gmail einsortiert (siehe unten).
+
 ## Einmalige Einrichtung
 
 1. **Gmail-App-Passwort erzeugen** (normales Passwort funktioniert bei IMAP nicht):
@@ -45,7 +87,7 @@ python3 rechnungen_sortieren.py --jahr 2026 --monat 6
 1. durchsucht den Posteingang nach Rechnungen des Monats
 2. ordnet jede Rechnung privat oder geschäftlich zu
 3. legt die Anhänge ab unter
-   `iCloud Drive/Steuer/<Jahr>/Privat` bzw. `.../Geschäftlich`
+   `Eingangsrechnungen/<Jahr>/<MM_Monat>/Privat` bzw. `.../Geschäftlich`
    — benannt nach dem Muster `2026-07-03_Absender_Rechnung.pdf`
 4. setzt in Gmail das Label `Rechnungen/Privat` bzw. `Rechnungen/Geschäftlich`
    — ProVend-Rechnungen stattdessen `ProVend Deutschland/Rechnungen an ProVend`

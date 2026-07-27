@@ -7,7 +7,15 @@ Aufruf:  python3 test_rechnungen.py
 import sys
 from datetime import datetime
 
-from rechnungen_sortieren import build_draft, classify, is_rechnung, ist_provend
+from pathlib import Path
+
+from rechnungen_sortieren import (
+    build_draft,
+    classify,
+    is_rechnung,
+    ist_provend,
+    target_dir,
+)
 
 
 ANHANG = [("beleg.pdf", b"%PDF-1.4")]
@@ -47,6 +55,30 @@ PROVEND = [
     ("billing@ionity.eu", "", False),
     ("no-reply@immobilienscout24.de", "", False),
 ]
+
+
+def pruefe_ablagepfad():
+    """Eingangsrechnungen liegen nach Jahr, Monat und Kategorie."""
+    basis = Path("/Steuer")
+    faelle = [
+        ("geschaeftlich", 2025, 3,
+         "/Steuer/Eingangsrechnungen/2025/03_März/Geschäftlich"),
+        ("privat", 2026, 12,
+         "/Steuer/Eingangsrechnungen/2026/12_Dezember/Privat"),
+        # Unklare Zuordnung darf nicht in Privat oder Geschäftlich landen.
+        (None, 2025, 1,
+         "/Steuer/Eingangsrechnungen/2025/01_Januar/_Zu_pruefen"),
+    ]
+
+    fehler = 0
+    for kategorie, jahr, monat, erwartet in faelle:
+        got = str(target_dir(basis, kategorie, jahr, monat))
+        if got != erwartet:
+            print(f"FEHL  target_dir({kategorie!r}, {jahr}, {monat})")
+            print(f"        = {got}")
+            print(f"        erwartet {erwartet}")
+            fehler += 1
+    return fehler
 
 
 def pruefe_entwurf():
@@ -104,8 +136,9 @@ def main():
             fehler += 1
 
     fehler += pruefe_entwurf()
+    fehler += pruefe_ablagepfad()
 
-    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(PROVEND) + 3
+    gesamt = len(KLASSIFIZIERUNG) + len(ERKENNUNG) + len(PROVEND) + 6
     if fehler:
         print(f"\n{fehler} von {gesamt} Tests fehlgeschlagen.")
         sys.exit(1)

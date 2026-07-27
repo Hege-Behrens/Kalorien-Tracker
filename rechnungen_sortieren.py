@@ -215,12 +215,34 @@ def resolve_steuer_dir(override=None):
     return icloud_root / "Steuer"
 
 
-def target_dir(steuer_dir, kategorie, jahr):
-    unterordner = {
-        "geschaeftlich": "Geschäftlich",
-        "privat": "Privat",
-    }.get(kategorie, "_Zu_pruefen")
-    return steuer_dir / str(jahr) / unterordner
+MONATSNAMEN = [
+    "Januar", "Februar", "März", "April", "Mai", "Juni",
+    "Juli", "August", "September", "Oktober", "November", "Dezember",
+]
+
+# Eingangsrechnungen = alles, was an mich geht. Ausgangsrechnungen an ProVend
+# werden hier bewusst nicht abgelegt.
+EINGANG_ORDNER = "Eingangsrechnungen"
+
+# Ab diesem Jahr wird die Ablage geführt.
+STARTJAHR = 2025
+
+KATEGORIE_ORDNER = {
+    "geschaeftlich": "Geschäftlich",
+    "privat": "Privat",
+}
+UNKLAR_ORDNER = "_Zu_pruefen"
+
+
+def monatsordner(monat):
+    """"03_März" — die Nummer vorn hält die Ordner chronologisch sortiert."""
+    return f"{monat:02d}_{MONATSNAMEN[monat - 1]}"
+
+
+def target_dir(steuer_dir, kategorie, jahr, monat):
+    """Zielordner nach Jahr, Monat und Kategorie."""
+    unterordner = KATEGORIE_ORDNER.get(kategorie, UNKLAR_ORDNER)
+    return steuer_dir / EINGANG_ORDNER / str(jahr) / monatsordner(monat) / unterordner
 
 
 def save_attachment(directory, filename, payload, dry_run=False):
@@ -268,11 +290,7 @@ def find_drafts_folder(imap):
 
 def build_draft(rechnungen, jahr, monat, absender):
     """Baue die Monats-Übersichtsmail mit allen Belegen als Anhang."""
-    monatsnamen = [
-        "Januar", "Februar", "März", "April", "Mai", "Juni",
-        "Juli", "August", "September", "Oktober", "November", "Dezember",
-    ]
-    monatsname = monatsnamen[monat - 1]
+    monatsname = MONATSNAMEN[monat - 1]
 
     msg = EmailMessage()
     msg["To"] = RECHNUNGSEINGANG
@@ -396,7 +414,9 @@ def run(username, password, jahr, monat, steuer_dir, dry_run, skip_draft):
 
         for r in rechnungen:
             kategorie = r["kategorie"]
-            directory = target_dir(steuer_dir, kategorie, r["datum"].year)
+            directory = target_dir(
+                steuer_dir, kategorie, r["datum"].year, r["datum"].month
+            )
 
             if r["provend"]:
                 label = LABEL_PROVEND_RECHNUNGEN
