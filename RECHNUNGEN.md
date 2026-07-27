@@ -142,10 +142,17 @@ Die Zuordnung privat/geschäftlich läuft über zwei Musterlisten im Skript:
 trag dort deine Lieferanten und Anbieter ein, dann trifft das Skript die
 Zuordnung zuverlässig.
 
-Als geschäftlich eingetragen sind unter anderem Immoscout, Meike Weitzel und
-sämtlicher Ladestrom fürs Auto (`LADESTROM_MUSTER`: EnBW mobility+, Ionity,
-EWE Go, Shell Recharge, Aral Pulse, Allego, Tesla … sowie Stichwörter wie
-Ladevorgang, Ladesäule, Wallbox).
+Als geschäftlich eingetragen sind unter anderem Immoscout, Meike Weitzel,
+Deutsche Post sowie sämtlicher Ladestrom fürs Auto (`LADESTROM_MUSTER`:
+EnBW mobility+, Ionity, EWE Go, Shell Recharge, Aral Pulse, Allego, Tesla,
+Qwello, ladecloud … sowie Stichwörter wie Ladevorgang, Ladesäule, Wallbox).
+
+Als privat eingetragen sind unter anderem CHRIST, Condor, Netflix, Zalando
+und Versicherungen.
+
+Ein Muster greift ab Wortanfang, deshalb steht dort `christ.de` und nicht
+`christ` — sonst würde jede Mail von einem „Christian" oder „Christoph" als
+privat einsortiert.
 
 Passt eine Rechnung auf keine der beiden Listen, wird **nicht geraten**. Sie landet
 in `Steuer/<Jahr>/_Zu_pruefen`, bekommt kein Gmail-Label und erscheint im Entwurf

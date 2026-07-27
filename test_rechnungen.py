@@ -34,8 +34,18 @@ KLASSIFIZIERUNG = [
     ("Rechnung", "billing@ionity.eu", "", "geschaeftlich"),
     ("Rechnung Ladevorgang", "abrechnung@ewe-go.de", "", "geschaeftlich"),
     ("Rechnung", "info@shell-recharge.com", "", "geschaeftlich"),
+    # Ladesäulenbetreiber ohne Ladestrom-Stichwort im Text
+    ("Qwello Invoice", "support@qwello.de", "Quittung", "geschaeftlich"),
+    ("Ihre Rechnung", "noreply-sw-suedholstein@ladecloud.de", "", "geschaeftlich"),
     ("Rechnung Wallbox", "a@b.de", "", "geschaeftlich"),
     ("Rechnung", "no-reply@netflix.com", "", "privat"),
+    ("Rechnung und Versand zu deiner Bestellung", "bestellung@christ.de", "", "privat"),
+    ("Condor Reisebestätigung", "no-answer@condor.com", "Rechnung", "privat"),
+    ("Rechnung zu Ihrer Bestellung", "service-shop@deutschepost.de", "", "geschaeftlich"),
+    ("Rechnung", "info@deutsche-post.de", "", "geschaeftlich"),
+    # "christ" darf nicht in Vornamen anspringen.
+    ("Rechnung", "christian.mueller@unbekannt.de", "", None),
+    ("Rechnung", "christoph@fremdfirma.de", "", None),
     # Darf nicht auf "elli" in "voellig" bzw. "mer" in "kommerziell" anspringen.
     ("Rechnung", "info@voellig-unbekannt.de", "", None),
     ("Rechnung", "kontakt@kommerziell-gmbh.de", "", None),

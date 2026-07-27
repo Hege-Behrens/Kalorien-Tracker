@@ -60,7 +60,7 @@ LADESTROM_MUSTER = [
     "charging", "charge point", "chargepoint", "supercharger",
     "enbw mobility", "ionity", "ewe go", "shell recharge", "aral pulse",
     "allego", "plugsurfing", "elli.eu", "we charge", "mer germany", "eon drive",
-    "maingau", "lichtblick", "tesla",
+    "maingau", "lichtblick", "tesla", "qwello", "ladecloud", "ladenetz",
 ]
 
 # Absender/Stichwörter, die eine Rechnung als geschäftlich kennzeichnen.
@@ -72,6 +72,7 @@ GESCHAEFTLICH_MUSTER = [
     "meike weitzel", "weitzel",
     "steuerberater", "kanzlei", "notar", "ihk", "berufsgenossenschaft",
     "bürobedarf", "makler",
+    "deutsche post", "deutschepost",
 ] + LADESTROM_MUSTER
 
 # ProVend-Post wird nur weggeräumt: kein Steuerordner, kein Entwurf, kein Versand.
@@ -86,6 +87,10 @@ PRIVAT_MUSTER = [
     "netflix", "spotify", "disney", "zalando", "otto.de", "ikea",
     "lieferando", "rewe", "edeka", "dm-drogerie", "apotheke",
     "stadtwerke", "versicherung", "fitnessstudio", "easypark",
+    # Bewusst die Domain und nicht "christ": das Muster greift ab Wortanfang
+    # und würde sonst auch in "Christian" oder "Christoph" anspringen.
+    "christ.de",
+    "condor",
 ]
 
 
