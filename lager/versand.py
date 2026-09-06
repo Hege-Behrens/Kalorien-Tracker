@@ -56,7 +56,8 @@ def empfaenger_liste(lager=None):
     return zerlegen(os.environ.get("BESTANDSLISTE_EMPFAENGER", ""))
 
 
-def senden(betreff, text, anhang_pfad=None, empfaenger=None, lager=None):
+def senden(betreff, text, anhang_pfad=None, empfaenger=None, lager=None,
+           html=None, logo_pfad=None, logo_cid="logo"):
     absender, passwort = zugangsdaten()
     empfaenger = empfaenger or empfaenger_liste(lager)
 
@@ -76,6 +77,17 @@ def senden(betreff, text, anhang_pfad=None, empfaenger=None, lager=None):
     nachricht["To"] = ", ".join(empfaenger)
     nachricht["Subject"] = betreff
     nachricht.set_content(text)
+
+    # Die HTML-Fassung als Alternative; der Textteil bleibt als Rueckfallebene
+    # fuer Programme, die kein HTML anzeigen.
+    if html:
+        nachricht.add_alternative(html, subtype="html")
+        if logo_pfad and os.path.exists(logo_pfad):
+            html_teil = nachricht.get_payload()[-1]
+            with open(logo_pfad, "rb") as f:
+                html_teil.add_related(
+                    f.read(), maintype="image", subtype="png", cid=f"<{logo_cid}>"
+                )
 
     if anhang_pfad and os.path.exists(anhang_pfad):
         with open(anhang_pfad, "rb") as f:

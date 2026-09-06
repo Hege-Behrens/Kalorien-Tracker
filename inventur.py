@@ -305,7 +305,13 @@ def cmd_bericht(args):
     print(text)
 
     if args.mail:
-        empfaenger = versand.senden(f"ProVend Bestandsliste - {stand}", text, pfad, lager=lager)
+        from lager import marke
+        logo, _ = marke.logo_fuer_einbettung(240)
+        empfaenger = versand.senden(
+            f"ProVend Bestandsliste - {date.today().strftime('%d.%m.%Y')}",
+            text, pfad, lager=lager,
+            html=bericht.als_html(lager), logo_pfad=logo,
+        )
         print(f"E-Mail versendet an: {', '.join(empfaenger)}")
 
 
