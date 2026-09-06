@@ -197,6 +197,32 @@ def cmd_korrektur(args):
     print(f"Korrektur gebucht: {differenz:+d} Stueck ({ist} -> {args.gezaehlt}).")
 
 
+def cmd_mindestbestaende(args):
+    """Zeigt Vorschlaege aus dem gemessenen Verbrauch, optional gleich uebernehmen."""
+    lager = daten.laden()
+    vorschlaege = bericht.mindestbestand_vorschlaege(lager, puffer_tage=args.puffer)
+    if not vorschlaege:
+        print("Noch keine Verkaufsdaten - ohne gemessenen Verbrauch gibt es nichts "
+              "abzuleiten. Erst ein paar Wochen Verkaufszahlen einlesen.")
+        return
+
+    kopf = f"{'Artikel':<38}{'Verbr./Tag':>11}{'bisher':>8}{'Vorschlag':>11}"
+    print(kopf)
+    print("-" * len(kopf))
+    for v in vorschlaege:
+        print(f"{v['name'][:37]:<38}{v['verbrauch_pro_tag']:>11}"
+              f"{v['bisher']:>8}{v['vorschlag']:>11}")
+
+    if args.uebernehmen:
+        for v in vorschlaege:
+            lager.artikel[v["artikel_id"]].mindestbestand = v["vorschlag"]
+        _speichern(lager)
+        print(f"\n{len(vorschlaege)} Mindestbestaende uebernommen.")
+    else:
+        print(f"\nDeckt {args.puffer} Tage Verbrauch ab. Uebernehmen mit:")
+        print(f"    ./inventur.py mindestbestaende --puffer {args.puffer} --uebernehmen")
+
+
 def cmd_bericht(args):
     lager = daten.laden()
     os.makedirs(BERICHTE, exist_ok=True)
@@ -264,6 +290,13 @@ def main():
     k.add_argument("--datum")
     k.add_argument("--notiz")
     k.set_defaults(func=cmd_korrektur)
+
+    m = unter.add_parser("mindestbestaende",
+                         help="Mindestbestaende aus dem gemessenen Verbrauch vorschlagen")
+    m.add_argument("--puffer", type=int, default=14,
+                   help="Wie viele Tage Verbrauch die Schwelle abdecken soll (Standard 14)")
+    m.add_argument("--uebernehmen", action="store_true", help="Vorschlaege in den Artikelstamm schreiben")
+    m.set_defaults(func=cmd_mindestbestaende)
 
     b = unter.add_parser("bericht", help="Excel-Bestandsliste erzeugen, optional per Mail")
     b.add_argument("--mail", action="store_true", help="Bericht an die hinterlegten Empfaenger senden")

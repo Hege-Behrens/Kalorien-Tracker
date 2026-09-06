@@ -88,6 +88,17 @@ wäre ein Fehler um Faktor 24. Trage `stueck_pro_gebinde` in
 ./inventur.py bericht --mail
 ```
 
+**Mindestbestände aus dem Verbrauch ableiten** (sobald ein paar Wochen
+Verkaufsdaten vorliegen):
+
+```bash
+./inventur.py mindestbestaende --puffer 14
+./inventur.py mindestbestaende --puffer 14 --uebernehmen
+```
+
+Der Vorschlag deckt so viele Tage Verbrauch ab, wie zwischen Warnung und
+Nachschub vergehen. Artikel ohne gemessene Verkäufe bekommen keinen Vorschlag.
+
 **Zählkorrektur nach einer Inventur:**
 
 ```bash
