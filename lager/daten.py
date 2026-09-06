@@ -16,6 +16,7 @@ DATA = os.path.join(BASIS, "data")
 ARTIKEL_CSV = os.path.join(DATA, "artikel.csv")
 BEWEGUNGEN_CSV = os.path.join(DATA, "bewegungen.csv")
 ALIASE_CSV = os.path.join(DATA, "aliase.csv")
+SAMMELREGELN_CSV = os.path.join(DATA, "sammelregeln.csv")
 OFFEN_CSV = os.path.join(DATA, "offene_zuordnungen.csv")
 
 ARTIKEL_FELDER = [
@@ -42,6 +43,8 @@ BEWEGUNGS_FELDER = [
 
 ALIAS_FELDER = ["quelle", "fremdbezeichnung", "artikel_id"]
 
+SAMMELREGEL_FELDER = ["muster", "artikel_id", "name"]
+
 # Bewegungsarten. Das Vorzeichen sagt, in welche Richtung der Bestand laeuft.
 TYPEN = {
     "ANFANGSBESTAND": +1,
@@ -50,6 +53,19 @@ TYPEN = {
     "KORREKTUR": +1,   # Menge kann negativ sein
     "SCHWUND": -1,
 }
+
+
+@dataclass
+class Sammelregel:
+    """Fasst alle Belegzeilen, die ein Muster enthalten, zu einem Artikel zusammen.
+
+    Gedacht fuer Sortimente mit staendig wechselnden Sorten, die im Automaten
+    ohnehin nur einen Platz belegen - z.B. Elf Bar Pots. Jede Bezeichnung, die
+    "ELF BAR" enthaelt, wird auf denselben Artikel gebucht, egal welche Sorte.
+    """
+    muster: str          # normalisierter Text, der in der Bezeichnung vorkommen muss
+    artikel_id: str
+    name: str = ""       # Anzeigename, falls der Artikel neu angelegt werden muss
 
 
 @dataclass
@@ -81,6 +97,7 @@ class Lager:
     artikel: dict = field(default_factory=dict)
     bewegungen: list = field(default_factory=list)
     aliase: dict = field(default_factory=dict)   # (quelle, normbezeichnung) -> artikel_id
+    sammelregeln: list = field(default_factory=list)
 
     # ---------- Bestand ----------
 
@@ -177,6 +194,21 @@ def laden():
             notiz=zeile.get("notiz", "").strip(),
         ))
 
+    for zeile in _lies_csv(SAMMELREGELN_CSV):
+        regel = Sammelregel(
+            muster=normalisieren(zeile["muster"]),
+            artikel_id=zeile["artikel_id"].strip(),
+            name=zeile.get("name", "").strip(),
+        )
+        lager.sammelregeln.append(regel)
+        # Der Sammelartikel wird bei Bedarf angelegt, damit eine Regel auch
+        # dann greift, wenn die Sorte noch nie im Lager war.
+        if regel.artikel_id not in lager.artikel:
+            lager.artikel[regel.artikel_id] = Artikel(
+                artikel_id=regel.artikel_id,
+                name=regel.name or regel.artikel_id,
+            )
+
     for zeile in _lies_csv(ALIASE_CSV):
         schluessel = (zeile["quelle"].strip().lower(),
                       normalisieren(zeile["fremdbezeichnung"]))
@@ -222,6 +254,13 @@ def speichern(lager):
             "notiz": b.notiz,
         }
         for b in sorted(lager.bewegungen, key=lambda x: (x.datum, x.artikel_id))
+    ])
+
+
+def sammelregeln_speichern(lager):
+    _schreib_csv(SAMMELREGELN_CSV, SAMMELREGEL_FELDER, [
+        {"muster": r.muster, "artikel_id": r.artikel_id, "name": r.name}
+        for r in lager.sammelregeln
     ])
 
 

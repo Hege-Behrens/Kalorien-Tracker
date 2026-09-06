@@ -37,6 +37,7 @@ def main():
     with tempfile.TemporaryDirectory() as tmp:
         arbeit = os.path.join(tmp, "lagerprojekt")
         shutil.copytree(BASIS, arbeit, ignore=shutil.ignore_patterns(".git", "__pycache__", "berichte"))
+        # sammelregeln.csv bleibt bewusst erhalten - sie ist Konfiguration, keine Bewegungsdatei.
         for datei in ("artikel.csv", "bewegungen.csv", "aliase.csv", "offene_zuordnungen.csv"):
             pfad = os.path.join(arbeit, "data", datei)
             if os.path.exists(pfad):
@@ -44,6 +45,8 @@ def main():
 
         lauf(arbeit, "anfangsbestand", "beispiele/Lagerbestand_beispiel.xlsx", "--datum", "2026-09-01")
         assert bestand_von(arbeit, "coca-cola-033l-dose") == 240, "Anfangsbestand nicht uebernommen"
+        # Vier Elf-Bar-Sorten (14+9+11+6) landen als ein Posten im Lager.
+        assert bestand_von(arbeit, "elf-bar-pots") == 40, "Sortenzeilen nicht zusammengefasst"
 
         # Rechnung: 5 Gebinde a 24 = 120 Stueck dazu.
         ausgabe = lauf(arbeit, "einkauf", "beispiele/rechnung_selgros.csv", "--quelle", "selgros")
@@ -62,6 +65,21 @@ def main():
         # Zaehlkorrektur.
         lauf(arbeit, "korrektur", "coca-cola-033l-dose", "270")
         assert bestand_von(arbeit, "coca-cola-033l-dose") == 270, "Korrektur nicht wirksam"
+
+        # Sammelartikel: 40 aus der Excel, minus 27 Verkaeufe, plus 6 Gebinde
+        # a 10 aus der Grosshandelsrechnung - alles auf einem Artikel.
+        assert bestand_von(arbeit, "elf-bar-pots") == 13, "Sortenverkauf nicht zusammengefasst"
+        lauf(arbeit, "einkauf", "beispiele/rechnung_grosshandel.csv", "--quelle", "grosshandel")
+        assert bestand_von(arbeit, "elf-bar-pots") == 73, "Sorten der Rechnung nicht zusammengefasst"
+
+        sys.path.insert(0, arbeit)
+        for modul in [m for m in list(sys.modules) if m.startswith("lager")]:
+            del sys.modules[modul]
+        from lager import daten as d
+        sorten = [a for a in d.laden().artikel.values()
+                  if "ELF" in a.name.upper() and a.artikel_id != "elf-bar-pots"]
+        sys.path.remove(arbeit)
+        assert not sorten, f"Einzelsorten angelegt statt zusammengefasst: {sorten}"
 
         ausgabe = lauf(arbeit, "warnungen")
         assert "Kinder Riegel 21g" in ausgabe, "Leerer Artikel fehlt in den Warnungen"

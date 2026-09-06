@@ -4,7 +4,7 @@ import csv
 import os
 
 from .daten import Artikel, Bewegung, heute, normalisieren
-from .zuordnung import alias_lernen, zuordnen
+from .zuordnung import alias_lernen, sammelregel_treffer, zuordnen
 
 # Kopfzeilen sind in der Praxis nie einheitlich benannt. Deshalb suchen wir
 # nach Stichworten statt nach exakten Spaltennamen.
@@ -68,7 +68,7 @@ def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None):
     if idx["name"] is None:
         raise ValueError("Keine Artikelspalte erkannt.")
 
-    protokoll = {"neu": 0, "aktualisiert": 0, "uebersprungen": 0}
+    protokoll = {"neu": 0, "aktualisiert": 0, "zusammengefasst": 0, "uebersprungen": 0}
 
     for zeile in zeilen[kopf_index + 1:]:
         def hole(feld):
@@ -87,19 +87,34 @@ def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None):
         lieferant = str(hole("lieferant") or "").strip()
         ean = str(hole("ean") or "").strip()
 
-        # Gibt es den Artikel schon? Dann aktualisieren statt neu anlegen.
+        # Faellt die Zeile unter einen Sammelartikel? Dann wird sie dorthin
+        # gebucht, statt eine eigene Sorte anzulegen. Mehrere Sortenzeilen
+        # addieren sich so zu einem Bestand.
+        regel = sammelregel_treffer(lager, name)
         vorhanden = None
-        norm = normalisieren(name)
-        for a in lager.artikel.values():
-            if normalisieren(a.name) == norm or (ean and a.ean == ean):
-                vorhanden = a
-                break
+        if regel:
+            vorhanden = lager.artikel[regel.artikel_id]
+            # Beim Sammelartikel gilt der groesste genannte Mindestbestand,
+            # sonst wuerde die letzte Sortenzeile die vorigen ueberschreiben.
+            vorhanden.mindestbestand = max(vorhanden.mindestbestand, mindest)
+            if gebinde > 1:
+                vorhanden.stueck_pro_gebinde = gebinde
+            if kategorie and not vorhanden.kategorie:
+                vorhanden.kategorie = kategorie
+            protokoll["zusammengefasst"] += 1
+        else:
+            norm = normalisieren(name)
+            for a in lager.artikel.values():
+                if normalisieren(a.name) == norm or (ean and a.ean == ean):
+                    vorhanden = a
+                    break
+            if vorhanden:
+                vorhanden.mindestbestand = mindest or vorhanden.mindestbestand
+                vorhanden.stueck_pro_gebinde = gebinde or vorhanden.stueck_pro_gebinde
+                protokoll["aktualisiert"] += 1
 
         if vorhanden:
-            vorhanden.mindestbestand = mindest or vorhanden.mindestbestand
-            vorhanden.stueck_pro_gebinde = gebinde or vorhanden.stueck_pro_gebinde
             artikel_id = vorhanden.artikel_id
-            protokoll["aktualisiert"] += 1
         else:
             artikel_id = lager.naechste_artikel_id(name)
             lager.artikel[artikel_id] = Artikel(

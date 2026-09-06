@@ -105,6 +105,7 @@ Positionsebene (Belegnummer + Bezeichnung), bereits gebuchte Zeilen werden
 
 | Status | Bedingung |
 |---|---|
+| `MINUS` | Bestand negativ — es wurde mehr verkauft als eingekauft, also fehlt eine Rechnung |
 | `LEER` | Bestand 0 |
 | `NACHBESTELLEN` | Bestand ≤ Mindestbestand |
 | `KNAPP` | Reichweite < 7 Tage |
@@ -113,6 +114,28 @@ Positionsebene (Belegnummer + Bezeichnung), bereits gebuchte Zeilen werden
 Die Reichweite ergibt sich aus dem Durchschnittsverbrauch der letzten 28 Tage
 laut Verkaufsbuchungen. Der Bestellvorschlag füllt auf 21 Tage Reichweite auf
 und wird auf volle Gebinde aufgerundet.
+
+## Sammelartikel (wechselnde Sorten)
+
+Sortimente, deren Sorten ständig durchwechseln und die im Automaten trotzdem
+nur einen Platz belegen, werden als **ein** Posten geführt — sonst zerfällt der
+Bestand in Sorten, die es nächste Woche nicht mehr gibt.
+
+```bash
+./inventur.py sammelartikel "Elf Bar" --name "Elf Bar Pots (alle Sorten)" --gebinde 10
+```
+
+Ab dann wird jede Belegzeile, die den Text enthält, auf diesen einen Artikel
+gebucht — egal ob `ELF BAR POT MANGO ICE`, `Elf Bar Pot Watermelon` oder
+`ELFBAR POT BLUEBERRY`. Leerzeichen werden ignoriert, `Elfbar` trifft also
+genauso. Bereits gebuchte Einzelsorten zieht der Befehl mit um und legt die
+leeren Sortenartikel still; der Bestand geht dabei nicht verloren.
+
+Die Regel hat Vorrang vor der Namensähnlichkeit — bei einem Sammelartikel
+sollen die Sorten gerade *nicht* auseinanderlaufen. Für `Elf Bar` ist die Regel
+in `data/sammelregeln.csv` bereits hinterlegt. Der Mindestbestand gilt für den
+Sammelartikel als Ganzes; werden in der Excel je Sorte Mindestbestände
+genannt, gilt der größte davon.
 
 ## Wöchentlicher Versand
 

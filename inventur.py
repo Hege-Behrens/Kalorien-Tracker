@@ -24,6 +24,7 @@ BERICHTE = os.path.join(daten.BASIS, "berichte")
 def _speichern(lager):
     daten.speichern(lager)
     daten.alias_speichern(lager)
+    daten.sammelregeln_speichern(lager)
 
 
 def _offene_melden(lager, ergebnis):
@@ -40,6 +41,7 @@ def cmd_anfangsbestand(args):
     protokoll = importe.anfangsbestand_aus_excel(lager, args.datei, datum=args.datum, blatt=args.blatt)
     _speichern(lager)
     print(f"Artikel neu angelegt: {protokoll['neu']}, aktualisiert: {protokoll['aktualisiert']}, "
+          f"zu Sammelartikeln zusammengefasst: {protokoll['zusammengefasst']}, "
           f"uebersprungen: {protokoll['uebersprungen']}")
     print(f"\n{bericht.als_text(lager)}")
 
@@ -105,6 +107,57 @@ def cmd_zuordnen(args):
     print(f"{gebucht} Position(en) nachgebucht, {len(rest)} weiterhin offen.")
     if gebucht:
         print("Die Zuordnungen wurden gelernt und greifen ab sofort automatisch.")
+
+
+def cmd_sammelartikel(args):
+    """Legt eine Sammelregel an: alle Bezeichnungen mit dem Muster -> ein Artikel."""
+    lager = daten.laden()
+    muster = daten.normalisieren(args.muster)
+    if not muster:
+        sys.exit("Das Muster darf nicht leer sein.")
+
+    artikel_id = args.artikel_id or lager.naechste_artikel_id(args.name or args.muster)
+    vorhandene = [r for r in lager.sammelregeln if r.muster == muster]
+    if vorhandene:
+        print(f"Regel '{muster}' besteht bereits (-> {vorhandene[0].artikel_id}).")
+        return
+
+    lager.sammelregeln.append(daten.Sammelregel(
+        muster=muster, artikel_id=artikel_id, name=args.name or args.muster))
+    if artikel_id not in lager.artikel:
+        lager.artikel[artikel_id] = daten.Artikel(
+            artikel_id=artikel_id,
+            name=args.name or args.muster,
+            stueck_pro_gebinde=args.gebinde,
+            mindestbestand=args.mindestbestand,
+        )
+
+    # Bereits gebuchte Einzelsorten auf den Sammelartikel umziehen, damit der
+    # Bestand nicht auf alte Sorten verteilt liegen bleibt.
+    umgezogen = 0
+    for bewegung in lager.bewegungen:
+        if bewegung.artikel_id == artikel_id:
+            continue
+        text = bewegung.bezeichnung or lager.artikel[bewegung.artikel_id].name
+        if muster.replace(" ", "") in daten.normalisieren(text).replace(" ", ""):
+            bewegung.artikel_id = artikel_id
+            umgezogen += 1
+
+    # Sorten, die dadurch keine Bewegung mehr haben, stilllegen.
+    aktive = {b.artikel_id for b in lager.bewegungen}
+    stillgelegt = 0
+    for a in lager.artikel.values():
+        if a.artikel_id != artikel_id and a.aktiv and a.artikel_id not in aktive \
+                and muster.replace(" ", "") in daten.normalisieren(a.name).replace(" ", ""):
+            a.aktiv = False
+            stillgelegt += 1
+
+    _speichern(lager)
+    print(f"Sammelartikel '{args.name or args.muster}' angelegt (id: {artikel_id}).")
+    print(f"Alles mit '{muster}' in der Bezeichnung wird ab sofort hierauf gebucht.")
+    if umgezogen:
+        print(f"{umgezogen} bereits gebuchte Bewegung(en) umgezogen, "
+              f"{stillgelegt} Einzelsorte(n) stillgelegt.")
 
 
 def cmd_bestand(args):
@@ -182,6 +235,15 @@ def main():
 
     z = unter.add_parser("zuordnen", help="Offene Zuordnungen nachbuchen")
     z.set_defaults(func=cmd_zuordnen)
+
+    sa = unter.add_parser("sammelartikel",
+                          help="Sorten unter einem Artikel zusammenfassen (z.B. Elf Bar Pots)")
+    sa.add_argument("muster", help="Text, der in der Bezeichnung vorkommen muss, z.B. 'Elf Bar'")
+    sa.add_argument("--name", help="Anzeigename des Sammelartikels")
+    sa.add_argument("--artikel-id", dest="artikel_id", help="feste ID (Standard: aus dem Namen)")
+    sa.add_argument("--mindestbestand", type=int, default=0)
+    sa.add_argument("--gebinde", type=int, default=1, help="Stueck pro Gebinde")
+    sa.set_defaults(func=cmd_sammelartikel)
 
     unter.add_parser("bestand", help="Aktuelle Bestandsliste anzeigen").set_defaults(func=cmd_bestand)
     unter.add_parser("warnungen", help="Nur Artikel unter Mindestbestand").set_defaults(func=cmd_warnungen)

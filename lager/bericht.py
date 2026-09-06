@@ -43,7 +43,11 @@ def zeilen(lager):
         pro_tag = verbrauch.get(a.artikel_id, 0.0)
         reichweite = (menge / pro_tag) if pro_tag > 0 else None
 
-        if menge <= 0:
+        if menge < 0:
+            # Rechnerisch unmoeglich - es wurde mehr verkauft als eingekauft.
+            # Praktisch heisst das: eine Rechnung fehlt noch.
+            status = "MINUS"
+        elif menge == 0:
             status = "LEER"
         elif a.mindestbestand and menge <= a.mindestbestand:
             status = "NACHBESTELLEN"
@@ -55,11 +59,15 @@ def zeilen(lager):
         # Bestellvorschlag: auffuellen bis Mindestbestand plus Zielreichweite,
         # aufgerundet auf volle Gebinde.
         vorschlag_stueck = 0
-        if status in ("LEER", "NACHBESTELLEN", "KNAPP"):
+        if status != "OK":
             ziel = max(a.mindestbestand, round(pro_tag * ZIELREICHWEITE_TAGE))
             vorschlag_stueck = max(0, ziel - menge)
         gebinde = max(1, a.stueck_pro_gebinde)
         vorschlag_gebinde = -(-vorschlag_stueck // gebinde) if vorschlag_stueck else 0
+        # Wer genau auf dem Mindestbestand steht, braucht rechnerisch nichts -
+        # praktisch aber schon. Mindestens ein Gebinde, sobald der Status kippt.
+        if status != "OK" and vorschlag_gebinde == 0:
+            vorschlag_gebinde = 1
 
         ergebnis.append({
             "artikel_id": a.artikel_id,
@@ -75,7 +83,7 @@ def zeilen(lager):
             "lieferant": a.lieferant,
         })
 
-    rang = {"LEER": 0, "NACHBESTELLEN": 1, "KNAPP": 2, "OK": 3}
+    rang = {"MINUS": 0, "LEER": 1, "NACHBESTELLEN": 2, "KNAPP": 3, "OK": 4}
     ergebnis.sort(key=lambda z: (rang[z["status"]], z["name"].lower()))
     return ergebnis
 
@@ -133,6 +141,7 @@ def als_excel(lager, pfad):
     blatt.freeze_panes = "A2"
 
     farben = {
+        "MINUS": "F87171",
         "LEER": "FCA5A5",
         "NACHBESTELLEN": "FDE68A",
         "KNAPP": "FEF3C7",

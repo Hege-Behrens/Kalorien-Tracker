@@ -28,19 +28,32 @@ def zuordnen(lager, quelle, fremdbezeichnung, ean=""):
     if treffer and treffer in lager.artikel:
         return treffer, 1.0, "alias"
 
-    # 2. Alias einer anderen Quelle (Bezeichnungen wiederholen sich oft).
+    # 2. Sammelregel. Sie steht bewusst vor Aehnlichkeit und EAN: bei einem
+    #    Sammelartikel sollen gerade NICHT die einzelnen Sorten auseinander
+    #    laufen, auch wenn eine Sorte zufaellig gut auf einen anderen Artikel
+    #    passen wuerde.
+    regel = sammelregel_treffer(lager, fremdbezeichnung)
+    if regel:
+        return regel.artikel_id, 1.0, f"sammelartikel:{regel.muster}"
+
+    # 3. Alias einer anderen Quelle (Bezeichnungen wiederholen sich oft).
     for (q, n), aid in lager.aliase.items():
         if n == norm and aid in lager.artikel:
             return aid, 1.0, f"alias:{q}"
 
-    # 3. EAN, falls der Beleg eine mitliefert.
+    # 4. EAN, falls der Beleg eine mitliefert.
     if ean:
         for a in lager.artikel.values():
             if a.ean and a.ean == ean.strip():
                 return a.artikel_id, 1.0, "ean"
 
-    # 4. Namensaehnlichkeit gegen den Artikelstamm.
-    namen = {normalisieren(a.name): a.artikel_id for a in lager.artikel.values()}
+    # 5. Namensaehnlichkeit gegen den Artikelstamm. Sammelartikel bleiben aussen
+    #    vor - dort entscheidet allein die Regel.
+    sammel_ids = {r.artikel_id for r in lager.sammelregeln}
+    namen = {
+        normalisieren(a.name): a.artikel_id
+        for a in lager.artikel.values() if a.artikel_id not in sammel_ids
+    }
     if namen:
         beste = difflib.get_close_matches(norm, list(namen), n=1, cutoff=0.0)
         if beste:
@@ -50,6 +63,20 @@ def zuordnen(lager, quelle, fremdbezeichnung, ean=""):
             return None, guete, "unsicher"
 
     return None, 0.0, "unbekannt"
+
+
+def sammelregel_treffer(lager, bezeichnung):
+    """Erste Sammelregel, deren Muster in der Bezeichnung vorkommt.
+
+    Leerzeichen werden dabei ignoriert: Auf Belegen steht mal "Elf Bar",
+    mal "Elfbar" - beides soll dieselbe Regel treffen.
+    """
+    norm = normalisieren(bezeichnung).replace(" ", "")
+    for regel in lager.sammelregeln:
+        muster = regel.muster.replace(" ", "")
+        if muster and muster in norm:
+            return regel
+    return None
 
 
 def alias_lernen(lager, quelle, fremdbezeichnung, artikel_id):
