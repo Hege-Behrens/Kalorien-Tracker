@@ -190,15 +190,26 @@ genannt, gilt der größte davon.
 ## Wöchentlicher Versand
 
 `.github/workflows/bestandsliste.yml` läuft montags früh und verschickt die
-Liste per iCloud-SMTP. Dafür in den GitHub-Secrets des Repositories hinterlegen:
+Liste per iCloud-SMTP.
+
+Die Empfänger stehen in `data/einstellungen.csv` und werden hier gesetzt:
+
+```bash
+./inventur.py empfaenger a@beispiel.de b@beispiel.de
+./inventur.py empfaenger          # anzeigen
+```
+
+Für den Absender braucht es zwei GitHub-Secrets im Repository
+(Settings → Secrets and variables → Actions):
 
 | Secret | Inhalt |
 |---|---|
 | `ICLOUD_EMAIL` | Absenderadresse |
-| `ICLOUD_APP_PASSWORD` | App-spezifisches Passwort (appleid.apple.com) |
-| `BESTANDSLISTE_EMPFAENGER` | Empfänger, kommagetrennt |
+| `ICLOUD_APP_PASSWORD` | App-spezifisches Passwort von appleid.apple.com |
 
-Lokal genügen dieselben Variablen als Umgebungsvariablen (siehe `.env.example`).
+Das App-Passwort gehört ausschließlich dorthin — nicht in eine Datei im
+Repository. Lokal genügen dieselben Werte als Umgebungsvariablen
+(siehe `.env.example`).
 
 ## Test
 

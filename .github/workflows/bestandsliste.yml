@@ -23,6 +23,8 @@ jobs:
         env:
           ICLOUD_EMAIL: ${{ secrets.ICLOUD_EMAIL }}
           ICLOUD_APP_PASSWORD: ${{ secrets.ICLOUD_APP_PASSWORD }}
+          # Die Empfaenger stehen in data/einstellungen.csv. Das Secret wird nur
+          # ausgewertet, wenn dort nichts hinterlegt ist.
           BESTANDSLISTE_EMPFAENGER: ${{ secrets.BESTANDSLISTE_EMPFAENGER }}
         run: python inventur.py bericht --mail
 

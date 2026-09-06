@@ -212,6 +212,34 @@ def cmd_korrektur(args):
     print(f"Korrektur gebucht: {differenz:+d} Stueck ({ist} -> {args.gezaehlt}).")
 
 
+def cmd_empfaenger(args):
+    """Zeigt oder setzt die Empfaenger der woechentlichen Bestandsliste."""
+    lager = daten.laden()
+    if not args.adressen:
+        aktuell = versand.empfaenger_liste(lager)
+        if aktuell:
+            print("Die Bestandsliste geht an:")
+            for adresse in aktuell:
+                print(f"  - {adresse}")
+        else:
+            print("Keine Empfaenger gesetzt.")
+        return
+
+    adressen = []
+    for eintrag in args.adressen:
+        for adresse in versand.zerlegen(eintrag):
+            if "@" not in adresse or "." not in adresse.split("@")[-1]:
+                sys.exit(f"Das sieht nicht nach einer E-Mail-Adresse aus: {adresse}")
+            if adresse not in adressen:
+                adressen.append(adresse)
+
+    lager.einstellungen["empfaenger"] = ",".join(adressen)
+    _speichern(lager)
+    print(f"{len(adressen)} Empfaenger gespeichert:")
+    for adresse in adressen:
+        print(f"  - {adresse}")
+
+
 def cmd_stichtag(args):
     """Setzt oder zeigt den Zeitpunkt, ab dem Verkaeufe gebucht werden."""
     lager = daten.laden()
@@ -277,7 +305,7 @@ def cmd_bericht(args):
     print(text)
 
     if args.mail:
-        empfaenger = versand.senden(f"Bestandsliste Automaten - {stand}", text, pfad)
+        empfaenger = versand.senden(f"ProVend Bestandsliste - {stand}", text, pfad, lager=lager)
         print(f"E-Mail versendet an: {', '.join(empfaenger)}")
 
 
@@ -325,6 +353,11 @@ def main():
     k.add_argument("--datum")
     k.add_argument("--notiz")
     k.set_defaults(func=cmd_korrektur)
+
+    em = unter.add_parser("empfaenger",
+                          help="Empfaenger der Bestandsliste anzeigen oder setzen")
+    em.add_argument("adressen", nargs="*", help="E-Mail-Adressen; ohne Angabe wird angezeigt")
+    em.set_defaults(func=cmd_empfaenger)
 
     st = unter.add_parser("stichtag",
                           help="Zeitpunkt setzen, ab dem Verkaeufe gebucht werden")

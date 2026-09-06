@@ -9,21 +9,38 @@ SMTP_HOST = "smtp.mail.me.com"
 SMTP_PORT = 587
 
 
-def empfaenger_liste():
-    """Empfaenger aus der Umgebungsvariable BESTANDSLISTE_EMPFAENGER (kommagetrennt)."""
-    roh = os.environ.get("BESTANDSLISTE_EMPFAENGER", "")
-    return [e.strip() for e in roh.replace(";", ",").split(",") if e.strip()]
+def zerlegen(roh):
+    return [e.strip() for e in (roh or "").replace(";", ",").split(",") if e.strip()]
 
 
-def senden(betreff, text, anhang_pfad=None, empfaenger=None):
+def empfaenger_liste(lager=None):
+    """Empfaenger der Bestandsliste.
+
+    Vorrang hat die Einstellung im Projekt, damit die Liste versioniert und
+    ohne Zugriff auf die Serverkonfiguration aenderbar ist. Die
+    Umgebungsvariable bleibt als Ausweichweg bestehen.
+    """
+    if lager is not None:
+        aus_einstellungen = zerlegen(lager.einstellungen.get("empfaenger", ""))
+        if aus_einstellungen:
+            return aus_einstellungen
+    return zerlegen(os.environ.get("BESTANDSLISTE_EMPFAENGER", ""))
+
+
+def senden(betreff, text, anhang_pfad=None, empfaenger=None, lager=None):
     absender = os.environ.get("ICLOUD_EMAIL", "")
     passwort = os.environ.get("ICLOUD_APP_PASSWORD", "")
-    empfaenger = empfaenger or empfaenger_liste()
+    empfaenger = empfaenger or empfaenger_liste(lager)
 
     if not (absender and passwort):
-        raise RuntimeError("ICLOUD_EMAIL und ICLOUD_APP_PASSWORD muessen gesetzt sein.")
+        raise RuntimeError(
+            "ICLOUD_EMAIL und ICLOUD_APP_PASSWORD muessen gesetzt sein. "
+            "Das App-Passwort wird auf appleid.apple.com erzeugt."
+        )
     if not empfaenger:
-        raise RuntimeError("Keine Empfaenger gesetzt (BESTANDSLISTE_EMPFAENGER).")
+        raise RuntimeError(
+            "Keine Empfaenger gesetzt. Setzen mit:  ./inventur.py empfaenger a@b.de c@d.de"
+        )
 
     nachricht = EmailMessage()
     nachricht["From"] = absender
