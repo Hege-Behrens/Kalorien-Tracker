@@ -157,7 +157,15 @@ def logo_fuer_einbettung(breite=280):
             if rand:
                 bild = bild.crop(rand)
             hoehe = round(bild.height * breite / bild.width)
-            bild.resize((breite, hoehe), Image.LANCZOS).save(ziel)
+            klein = bild.resize((breite, hoehe), Image.LANCZOS)
+            # Ein zwei- bis dreifarbiges Logo braucht keine Millionen Farben.
+            # Die Palette spart rund 80 Prozent Dateigroesse, was im
+            # E-Mail-Anhang und im Versandpaket spuerbar ist.
+            try:
+                klein = klein.quantize(colors=64, method=Image.FASTOCTREE)
+            except (ValueError, OSError):
+                pass
+            klein.save(ziel, optimize=True)
 
     try:
         from PIL import Image

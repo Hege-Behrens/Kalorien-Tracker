@@ -286,21 +286,88 @@ def cmd_mindestbestaende(args):
         print(f"    ./inventur.py mindestbestaende --puffer {args.puffer} --uebernehmen")
 
 
-def cmd_bericht(args):
-    lager = daten.laden()
+def _bericht_erzeugen(lager):
+    """Erzeugt die Excel-Datei und liefert Pfad, Mailtext und Datum."""
     os.makedirs(BERICHTE, exist_ok=True)
-    stand = date.today().isoformat()
-    pfad = os.path.join(BERICHTE, f"bestandsliste_{stand}.xlsx")
+    stand = date.today()
+    pfad = os.path.join(BERICHTE, f"bestandsliste_{stand.isoformat()}.xlsx")
     bericht.als_excel(lager, pfad)
-    print(f"Bericht geschrieben: {os.path.relpath(pfad, daten.BASIS)}")
 
     offene = bericht.warnungen(lager)
     text = (
-        f"Bestandsliste vom {stand}\n\n"
+        f"Bestandsliste vom {stand.strftime('%d.%m.%Y')}\n\n"
         f"{len(offene)} von {len(lager.artikel)} Artikeln brauchen Aufmerksamkeit:\n\n"
         f"{bericht.als_text(lager, nur_warnungen=True)}\n\n"
         "Die vollstaendige Liste haengt als Excel-Datei an.\n"
     )
+    return pfad, text, stand
+
+
+def cmd_mailpaket(args):
+    """Schnuert das fertige Versandpaket als JSON.
+
+    Gedacht fuer den Versand aus einer Claude-Routine heraus: die Routine
+    muss den Inhalt nicht selbst zusammenbauen, sondern reicht die Felder
+    dieser Datei unveraendert an den Gmail-Versand weiter. Die Feldnamen
+    entsprechen denen des Gmail-Werkzeugs.
+    """
+    import base64
+    import json
+
+    from lager import marke
+
+    lager = daten.laden()
+    pfad, text, stand = _bericht_erzeugen(lager)
+
+    empfaenger = versand.empfaenger_liste(lager)
+    if not empfaenger:
+        sys.exit("Keine Empfaenger gesetzt. Setzen mit:  ./inventur.py empfaenger a@b.de")
+
+    def kodieren(dateipfad):
+        with open(dateipfad, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+
+    # Das Logo wird als eingebetteter Anhang mitgeschickt; im HTML verweist
+    # cid:logo.png darauf. Der Dateiname bildet die Kennung.
+    anhaenge = [{
+        "filename": f"ProVend_Bestandsliste_{stand.isoformat()}.xlsx",
+        "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "content": kodieren(pfad),
+    }]
+    logo, _ = marke.logo_fuer_einbettung(240)
+    if logo:
+        anhaenge.append({
+            "filename": "logo.png",
+            "mimeType": "image/png",
+            "content": kodieren(logo),
+            "inline": True,
+        })
+
+    paket = {
+        "to": empfaenger,
+        "subject": f"ProVend Bestandsliste - {stand.strftime('%d.%m.%Y')}",
+        "body": text,
+        "htmlBody": bericht.als_html(lager, logo_cid="logo.png"),
+        "attachments": anhaenge,
+    }
+
+    ziel = args.ausgabe or os.path.join(BERICHTE, "versandpaket.json")
+    with open(ziel, "w", encoding="utf-8") as f:
+        json.dump(paket, f, ensure_ascii=False)
+
+    groesse = os.path.getsize(ziel) / 1024
+    print(f"Versandpaket geschrieben: {os.path.relpath(ziel, daten.BASIS)} ({groesse:.0f} KB)")
+    print(f"Empfaenger: {', '.join(empfaenger)}")
+    print(f"Betreff:    {paket['subject']}")
+    print(f"Anhaenge:   {', '.join(a['filename'] for a in anhaenge)}")
+    print()
+    print(bericht.als_text(lager, nur_warnungen=True))
+
+
+def cmd_bericht(args):
+    lager = daten.laden()
+    pfad, text, _ = _bericht_erzeugen(lager)
+    print(f"Bericht geschrieben: {os.path.relpath(pfad, daten.BASIS)}")
     print()
     print(text)
 
@@ -376,6 +443,11 @@ def main():
                    help="Wie viele Tage Verbrauch die Schwelle abdecken soll (Standard 14)")
     m.add_argument("--uebernehmen", action="store_true", help="Vorschlaege in den Artikelstamm schreiben")
     m.set_defaults(func=cmd_mindestbestaende)
+
+    mp = unter.add_parser("mailpaket",
+                          help="Versandfertiges JSON erzeugen (fuer den Versand aus einer Routine)")
+    mp.add_argument("--ausgabe", help="Zieldatei (Standard: berichte/versandpaket.json)")
+    mp.set_defaults(func=cmd_mailpaket)
 
     b = unter.add_parser("bericht", help="Excel-Bestandsliste erzeugen, optional per Mail")
     b.add_argument("--mail", action="store_true", help="Bericht an die hinterlegten Empfaenger senden")

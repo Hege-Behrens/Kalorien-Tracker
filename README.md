@@ -189,8 +189,24 @@ genannt, gilt der größte davon.
 
 ## Wöchentlicher Versand
 
+Zwei Wege, je nachdem was verfügbar ist:
+
+**Über eine Claude-Routine** (ohne GitHub-Zugang, ohne App-Passwort) —
+siehe [ROUTINE.md](ROUTINE.md). Der Befehl
+
+```bash
+./inventur.py mailpaket
+```
+
+erzeugt `berichte/versandpaket.json` mit Betreff, Text, HTML-Fassung und
+beiden Anhängen. Die Feldnamen entsprechen den Parametern des
+Gmail-Werkzeugs, die Routine reicht sie unverändert weiter.
+
+**Über GitHub Actions**
+
 `.github/workflows/bestandsliste.yml` läuft **montags um 12 Uhr** und
-verschickt die Liste per SMTP.
+verschickt die Liste per SMTP. Beide Wege gleichzeitig zu aktivieren, führt
+zu doppelten Mails — eins von beidem genügt.
 
 Die Empfänger stehen in `data/einstellungen.csv` und werden hier gesetzt:
 

@@ -168,17 +168,17 @@ def als_excel(lager, pfad):
     blatt.title = "Bestand"
     blatt.sheet_view.showGridLines = False
 
+    # Nr. und Selektor bleiben bewusst draussen: fuer den Einkauf sind sie
+    # ohne Bedeutung. Beide Felder stehen weiterhin in data/artikel.csv.
     spalten = [
-        ("Artikel", "name", 38, "links"),
-        ("Nr.", "nummer", 7, "mitte"),
-        ("Selektor", "selektor", 9, "mitte"),
-        ("Bestand", "bestand", 11, "zahl"),
-        ("Mindest-\nbestand", "mindestbestand", 12, "zahl"),
-        ("Verbrauch\npro Tag", "verbrauch_pro_tag", 12, "komma"),
-        ("Reichweite\n(Tage)", "reichweite_tage", 12, "komma"),
-        ("Status", "status", 16, "mitte"),
-        ("Bestellen\n(Gebinde)", "bestellvorschlag_gebinde", 12, "zahl"),
-        ("Lieferant", "lieferant", 16, "links"),
+        ("Artikel", "name", 42, "links"),
+        ("Bestand", "bestand", 12, "zahl"),
+        ("Mindest-\nbestand", "mindestbestand", 13, "zahl"),
+        ("Verbrauch\npro Tag", "verbrauch_pro_tag", 13, "komma"),
+        ("Reichweite\n(Tage)", "reichweite_tage", 13, "komma"),
+        ("Status", "status", 17, "mitte"),
+        ("Bestellen\n(Gebinde)", "bestellvorschlag_gebinde", 13, "zahl"),
+        ("Lieferant", "lieferant", 18, "links"),
     ]
     letzte_spalte = get_column_letter(len(spalten))
 
