@@ -82,19 +82,44 @@ def main():
         lauf(arbeit, "zuordnen")
         assert bestand_von(arbeit, "sprite-033l") == 34 + 5 * 24, "Nachbuchung falsch verrechnet"
 
-        # Verkaeufe der Automaten mindern den Bestand.
-        lauf(arbeit, "verkauf", "beispiele/verkaeufe_automat.csv")
-        assert bestand_von(arbeit, "sprite-033l") == 34 + 5 * 24 - 12, "Verkauf nicht abgebucht"
+        # Verkaeufe: nur ab dem Stichtag, alles davor steckt im Anfangsbestand.
+        lauf(arbeit, "stichtag", "2026-09-06T15:00")
+        ausgabe = lauf(arbeit, "verkauf", "beispiele/verkaeufe_automat.csv")
+        assert "2 Position(en) vor dem Stichtag" in ausgabe, ausgabe
+        assert bestand_von(arbeit, "sprite-033l") == 34 + 5 * 24 - 3 - 7, \
+            "Verkaeufe vor dem Stichtag wurden mitgerechnet"
+
+        # Ueberlappender Folgeexport: die alten Zeilen duerfen nicht erneut
+        # abgebucht werden, nur die beiden neuen.
+        ausgabe = lauf(arbeit, "verkauf", "beispiele/verkaeufe_automat_folgewoche.csv")
+        assert "2 Position(en) als Verkauf abgebucht" in ausgabe, ausgabe
+        assert "5 Position(en) uebersprungen - bereits gebucht" in ausgabe, ausgabe
+        assert bestand_von(arbeit, "sprite-033l") == 34 + 5 * 24 - 3 - 7 - 4, \
+            "Ueberlappung wurde doppelt gebucht"
+
+        # Derselbe Export ein drittes Mal aendert gar nichts mehr.
+        vorher = bestand_von(arbeit, "sprite-033l")
+        lauf(arbeit, "verkauf", "beispiele/verkaeufe_automat_folgewoche.csv")
+        assert bestand_von(arbeit, "sprite-033l") == vorher, "Wiederholter Import hat gebucht"
 
         # Zaehlkorrektur.
         lauf(arbeit, "korrektur", "sprite-033l", "140")
         assert bestand_von(arbeit, "sprite-033l") == 140, "Korrektur nicht wirksam"
 
-        # Sammelartikel: 14 aus der Excel, minus 4 Verkaeufe, plus 6 Stueck
-        # aus der Grosshandelsrechnung - alles auf einem Artikel.
-        assert bestand_von(arbeit, "elfbar-pods") == 10, "Sortenverkauf nicht zusammengefasst"
+        # Zeilen ohne Uhrzeit am Stichtag selbst werden vorgelegt, nicht geraten.
+        unklar = os.path.join(arbeit, "nur_datum.csv")
+        with open(unklar, "w", encoding="utf-8") as f:
+            f.write("Datum;Automat;Artikel;Menge\n06.09.2026;Glückstadt;Sprite 0,33l;5\n")
+        ausgabe = lauf(arbeit, "verkauf", unklar)
+        assert "ohne verwertbare Uhrzeit" in ausgabe, ausgabe
+        assert bestand_von(arbeit, "sprite-033l") == 140, "Unklare Zeile wurde gebucht"
+
+        # Sammelartikel: 14 aus der Excel, minus Verkaeufe zweier Sorten, plus
+        # 6 Stueck aus der Grosshandelsrechnung - alles auf einem Artikel.
+        assert bestand_von(arbeit, "elfbar-pods") == 14 - 1 - 2, "Sortenverkauf nicht zusammengefasst"
         lauf(arbeit, "einkauf", "beispiele/rechnung_grosshandel.csv", "--quelle", "grosshandel")
-        assert bestand_von(arbeit, "elfbar-pods") == 16, "Sorten der Rechnung nicht zusammengefasst"
+        assert bestand_von(arbeit, "elfbar-pods") == 14 - 1 - 2 + 6, \
+            "Sorten der Rechnung nicht zusammengefasst"
         assert bestand_von(arbeit, "elfbar-basisgeraet") == 13, "Basisgeraet nicht separat gebucht"
 
         sys.path.insert(0, arbeit)

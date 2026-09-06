@@ -79,6 +79,28 @@ Ist für einen Artikel keine Gebindegröße hinterlegt, wird eine Gebinde-Zeile
 wäre ein Fehler um Faktor 24. Trage `stueck_pro_gebinde` in
 `data/artikel.csv` nach und führe `./inventur.py zuordnen` aus.
 
+### Stichtag und Dublettenschutz bei Verkäufen
+
+Verkäufe werden erst ab einem Stichtag gebucht — alles davor steckt bereits im
+Anfangsbestand und würde sonst doppelt abgezogen:
+
+```bash
+./inventur.py stichtag 2026-09-06T15:00
+./inventur.py stichtag              # aktuellen Stichtag anzeigen
+```
+
+Zeilen vor dem Stichtag werden übersprungen und gezählt. Zeilen, die nur ein
+Datum ohne Uhrzeit tragen **und** auf den Stichtag selbst fallen, werden nicht
+gebucht, sondern gemeldet: ob sie vor oder nach 15:00 Uhr liegen, ist nicht
+entscheidbar, und Raten wäre hier ein stiller Fehler.
+
+Gegen Doppelbuchungen bekommt jede Verkaufszeile eine stabile Kennung aus
+Zeitpunkt, Quelle, Automat und Artikel — Verkaufsexporte tragen selten eine
+Belegnummer, überlappen sich aber häufig. Enthält der Export eine
+Transaktionsnummer, wird diese verwendet. Ein Export, der bereits gebuchte
+Zeiträume erneut enthält, kann daher gefahrlos eingelesen werden: die bekannten
+Zeilen werden erkannt und übersprungen, nur die neuen kommen dazu.
+
 **Abfragen:**
 
 ```bash

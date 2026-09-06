@@ -16,6 +16,7 @@ import sys
 from datetime import date
 
 from lager import bericht, daten, importe, versand
+from lager import zeit as zeitmodul
 from lager.zuordnung import alias_lernen
 
 BERICHTE = os.path.join(daten.BASIS, "berichte")
@@ -25,6 +26,7 @@ def _speichern(lager):
     daten.speichern(lager)
     daten.alias_speichern(lager)
     daten.sammelregeln_speichern(lager)
+    daten.einstellungen_speichern(lager)
 
 
 def _offene_melden(lager, ergebnis):
@@ -63,11 +65,24 @@ def cmd_einkauf(args):
 
 def cmd_verkauf(args):
     lager = daten.laden()
+    stichtag = lager.einstellungen.get("verkauf_ab", "")
     ergebnis = importe.belege_buchen(lager, args.datei, "VERKAUF", quelle_standard="automat")
     _speichern(lager)
+
     print(f"{len(ergebnis['gebucht'])} Position(en) als Verkauf abgebucht.")
+    if ergebnis["vor_stichtag"]:
+        print(f"{ergebnis['vor_stichtag']} Position(en) vor dem Stichtag {stichtag} "
+              f"uebersprungen - sie stecken bereits im Anfangsbestand.")
     if ergebnis["dubletten"]:
-        print(f"{ergebnis['dubletten']} Position(en) uebersprungen - Beleg war bereits erfasst.")
+        print(f"{ergebnis['dubletten']} Position(en) uebersprungen - bereits gebucht.")
+    if ergebnis["ohne_zeit"]:
+        print(f"\n{len(ergebnis['ohne_zeit'])} Position(en) ohne verwertbare Uhrzeit am "
+              f"Stichtag - NICHT gebucht, weil unklar ist, ob sie vor oder nach "
+              f"{stichtag} liegen:")
+        for name in ergebnis["ohne_zeit"][:10]:
+            print(f"  - {name}")
+        if len(ergebnis["ohne_zeit"]) > 10:
+            print(f"  ... und {len(ergebnis['ohne_zeit']) - 10} weitere")
     _offene_melden(lager, ergebnis)
 
 
@@ -197,6 +212,26 @@ def cmd_korrektur(args):
     print(f"Korrektur gebucht: {differenz:+d} Stueck ({ist} -> {args.gezaehlt}).")
 
 
+def cmd_stichtag(args):
+    """Setzt oder zeigt den Zeitpunkt, ab dem Verkaeufe gebucht werden."""
+    lager = daten.laden()
+    if not args.zeitpunkt:
+        aktuell = lager.einstellungen.get("verkauf_ab")
+        print(f"Verkaeufe werden gebucht ab: {aktuell}" if aktuell
+              else "Kein Stichtag gesetzt - alle Verkaufszeilen werden gebucht.")
+        return
+
+    zeitpunkt, hat_uhrzeit = zeitmodul.lesen(args.zeitpunkt)
+    if zeitpunkt is None:
+        sys.exit(f"Zeitpunkt nicht lesbar: {args.zeitpunkt} (z.B. 2026-09-06T15:00)")
+    if not hat_uhrzeit:
+        print("Hinweis: ohne Uhrzeit gilt 00:00 Uhr.")
+    lager.einstellungen["verkauf_ab"] = zeitpunkt.isoformat()
+    _speichern(lager)
+    print(f"Stichtag gesetzt: Verkaeufe ab {zeitpunkt.isoformat()} werden gebucht, "
+          f"alles davor gilt als im Anfangsbestand enthalten.")
+
+
 def cmd_mindestbestaende(args):
     """Zeigt Vorschlaege aus dem gemessenen Verbrauch, optional gleich uebernehmen."""
     lager = daten.laden()
@@ -290,6 +325,11 @@ def main():
     k.add_argument("--datum")
     k.add_argument("--notiz")
     k.set_defaults(func=cmd_korrektur)
+
+    st = unter.add_parser("stichtag",
+                          help="Zeitpunkt setzen, ab dem Verkaeufe gebucht werden")
+    st.add_argument("zeitpunkt", nargs="?", help="z.B. 2026-09-06T15:00; ohne Angabe wird angezeigt")
+    st.set_defaults(func=cmd_stichtag)
 
     m = unter.add_parser("mindestbestaende",
                          help="Mindestbestaende aus dem gemessenen Verbrauch vorschlagen")

@@ -3,6 +3,7 @@
 import csv
 import os
 
+from . import zeit as zeitmodul
 from .daten import Artikel, Bewegung, heute, normalisieren
 from .zuordnung import alias_lernen, sammelregel_treffer, zuordnen
 
@@ -208,30 +209,94 @@ def _feld(zeile, *namen):
     return ""
 
 
+def _stichtag(lager, typ):
+    """Zeitpunkt, ab dem Verkaeufe gebucht werden duerfen.
+
+    Alles davor steckt bereits im Anfangsbestand und wuerde doppelt abgezogen.
+    """
+    if typ != "VERKAUF":
+        return None
+    zeitpunkt, _ = zeitmodul.lesen(lager.einstellungen.get("verkauf_ab", ""))
+    return zeitpunkt
+
+
+def _positionskennung(zeile, quelle, bezeichnung, zeitpunkt, zaehler):
+    """Stabile Kennung einer Verkaufszeile, wenn der Export keine Belegnummer hat.
+
+    Verkaufsexporte tragen selten eine Belegnummer, ueberlappen sich aber
+    haeufig (der Export der zweiten Woche enthaelt oft noch die erste). Ohne
+    Kennung wuerde jede Ueberlappung doppelt abgebucht. Die Kennung aus
+    Zeitpunkt, Quelle und Automat ist bei erneutem Export identisch - dieselbe
+    Zeile wird also wiedererkannt.
+    """
+    transaktion = _feld(zeile, "transaktion", "vorgang", "transaction")
+    if transaktion:
+        return f"verkauf:{transaktion}"
+
+    automat = _feld(zeile, "automat", "geraet", "gerät", "maschine", "standort")
+
+    stempel = zeitpunkt.isoformat() if zeitpunkt else "ohne-zeit"
+    basis = f"verkauf:{quelle}:{automat}:{stempel}:{normalisieren(bezeichnung)}"
+    # Mehrere gleiche Zeilen in derselben Datei bekommen eine laufende Nummer,
+    # damit sie sich nicht gegenseitig als Dublette ausloeschen.
+    zaehler[basis] = zaehler.get(basis, 0) + 1
+    return f"{basis}#{zaehler[basis]}"
+
+
 def belege_buchen(lager, pfad, typ, quelle_standard="", automatisch_anlegen=False):
     """Bucht Rechnungs- oder Verkaufszeilen aus einer CSV.
 
     Erwartete Spalten (Reihenfolge egal, Benennung tolerant):
-      datum, bezeichnung, menge, einheit (stueck|gebinde), beleg, quelle, ean
+      datum, uhrzeit, bezeichnung, menge, einheit (stueck|gebinde), beleg,
+      quelle, ean, automat, transaktion
 
     Zeilen, deren Artikel nicht sicher zugeordnet werden kann, werden NICHT
     gebucht, sondern in data/offene_zuordnungen.csv gesammelt.
     """
     gebucht, offen, dubletten = [], [], 0
+    vor_stichtag, ohne_zeit = 0, []
     bekannte_positionen = lager.positionen()
+    stichtag = _stichtag(lager, typ)
+    zaehler = {}
 
     for zeile in _belegzeilen_lesen(pfad):
         bezeichnung = _feld(zeile, "bezeichnung", "artikel", "produkt", "name")
         if not bezeichnung:
             continue
 
-        menge = _zahl(_feld(zeile, "menge", "anzahl", "stueck", "stück"))
+        menge = _zahl(_feld(zeile, "menge", "anzahl", "stueck", "stück",
+                            "verkauf", "verkäuf", "absatz"))
         if menge <= 0:
             continue
 
-        datum = _feld(zeile, "datum") or heute()
-        beleg = _feld(zeile, "beleg", "rechnung", "bon", "nummer")
+        zeitpunkt, hat_uhrzeit = zeitmodul.zusammensetzen(
+            _feld(zeile, "datum", "zeitpunkt", "zeitstempel", "timestamp"),
+            _feld(zeile, "uhrzeit", "zeit"),
+        )
+        datum = zeitpunkt.date().isoformat() if zeitpunkt else (_feld(zeile, "datum") or heute())
+
+        if stichtag:
+            if zeitpunkt is None:
+                # Ohne Datum laesst sich der Stichtag nicht anwenden.
+                ohne_zeit.append(bezeichnung)
+                continue
+            if hat_uhrzeit:
+                if zeitpunkt < stichtag:
+                    vor_stichtag += 1
+                    continue
+            elif zeitpunkt.date() < stichtag.date():
+                vor_stichtag += 1
+                continue
+            elif zeitpunkt.date() == stichtag.date():
+                # Tagesgenaue Zeile am Stichtag selbst: ein Teil davon liegt vor
+                # 15 Uhr und steckt schon im Bestand. Nicht raten - vorlegen.
+                ohne_zeit.append(bezeichnung)
+                continue
+
         quelle = (_feld(zeile, "quelle", "lieferant", "markt") or quelle_standard).lower()
+        beleg = _feld(zeile, "beleg", "rechnung", "bon", "belegnummer")
+        if not beleg and typ == "VERKAUF":
+            beleg = _positionskennung(zeile, quelle, bezeichnung, zeitpunkt, zaehler)
         ean = _feld(zeile, "ean", "barcode", "gtin")
         einheit = _feld(zeile, "einheit", "vpe").lower()
 
@@ -280,7 +345,8 @@ def belege_buchen(lager, pfad, typ, quelle_standard="", automatisch_anlegen=Fals
         ))
         gebucht.append((artikel.name, stueck))
 
-    return {"gebucht": gebucht, "offen": offen, "dubletten": dubletten}
+    return {"gebucht": gebucht, "offen": offen, "dubletten": dubletten,
+            "vor_stichtag": vor_stichtag, "ohne_zeit": ohne_zeit}
 
 
 OFFEN_FELDER = ["datum", "quelle", "bezeichnung", "menge", "einheit",

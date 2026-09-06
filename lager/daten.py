@@ -17,6 +17,7 @@ ARTIKEL_CSV = os.path.join(DATA, "artikel.csv")
 BEWEGUNGEN_CSV = os.path.join(DATA, "bewegungen.csv")
 ALIASE_CSV = os.path.join(DATA, "aliase.csv")
 SAMMELREGELN_CSV = os.path.join(DATA, "sammelregeln.csv")
+EINSTELLUNGEN_CSV = os.path.join(DATA, "einstellungen.csv")
 OFFEN_CSV = os.path.join(DATA, "offene_zuordnungen.csv")
 
 ARTIKEL_FELDER = [
@@ -46,6 +47,8 @@ BEWEGUNGS_FELDER = [
 ALIAS_FELDER = ["quelle", "fremdbezeichnung", "artikel_id"]
 
 SAMMELREGEL_FELDER = ["muster", "artikel_id", "name"]
+
+EINSTELLUNGS_FELDER = ["schluessel", "wert"]
 
 # Bewegungsarten. Das Vorzeichen sagt, in welche Richtung der Bestand laeuft.
 TYPEN = {
@@ -102,6 +105,7 @@ class Lager:
     bewegungen: list = field(default_factory=list)
     aliase: dict = field(default_factory=dict)   # (quelle, normbezeichnung) -> artikel_id
     sammelregeln: list = field(default_factory=list)
+    einstellungen: dict = field(default_factory=dict)
 
     # ---------- Bestand ----------
 
@@ -200,6 +204,9 @@ def laden():
             notiz=zeile.get("notiz", "").strip(),
         ))
 
+    for zeile in _lies_csv(EINSTELLUNGEN_CSV):
+        lager.einstellungen[zeile["schluessel"].strip()] = zeile["wert"].strip()
+
     for zeile in _lies_csv(SAMMELREGELN_CSV):
         regel = Sammelregel(
             muster=normalisieren(zeile["muster"]),
@@ -262,6 +269,12 @@ def speichern(lager):
             "notiz": b.notiz,
         }
         for b in sorted(lager.bewegungen, key=lambda x: (x.datum, x.artikel_id))
+    ])
+
+
+def einstellungen_speichern(lager):
+    _schreib_csv(EINSTELLUNGEN_CSV, EINSTELLUNGS_FELDER, [
+        {"schluessel": k, "wert": v} for k, v in sorted(lager.einstellungen.items())
     ])
 
 
