@@ -40,9 +40,21 @@ berichte/                     erzeugte Excel-Bestandslisten
 ./inventur.py anfangsbestand Lagerbestand.xlsx
 ```
 
-Die Spalten werden anhand ihrer Überschriften erkannt (`Artikel`, `Bestand`,
-`Mindestbestand`, `Gebinde`, `Kategorie`, `Lieferant`, `EAN`). Die Datei muss
-also nicht vorbereitet werden; Titelzeilen über der Kopfzeile stören nicht.
+Die Spalten werden anhand ihrer Überschriften erkannt (`Artikel`, `Nr.`,
+`Selektor`, `Menge Lager`, `Gesamt`, `Mindestbestand`, `Gebinde`, `Kategorie`,
+`Lieferant`, `EAN`). Die Datei muss also nicht vorbereitet werden; Titel- und
+Erklärzeilen über der Kopfzeile werden übersprungen, Summenzeilen am Ende
+ebenfalls.
+
+Standardmäßig wird die Spalte **`Gesamt`** übernommen, also Lager plus
+Automaten. Grund: Nachfüllvorgänge werden nicht erfasst, die Verkaufszahlen
+aber schon — würde nur das Lager geführt, zöge jeder Verkauf vom Lager ab,
+obwohl die Ware längst im Automaten steht, und der Bestand liefe ins Minus.
+Nur das Lager führen:
+
+```bash
+./inventur.py anfangsbestand Lagerbestand.xlsx --mengenspalte lager
+```
 
 **Laufend — Rechnungen und Verkäufe:**
 
@@ -61,6 +73,11 @@ Datum;Bezeichnung;Menge;Einheit;Beleg;Quelle
 
 `Einheit` unterscheidet `stueck` von `gebinde` — bei `gebinde` wird mit der
 Gebindegröße des Artikels multipliziert. Ohne Angabe gilt Stück.
+
+Ist für einen Artikel keine Gebindegröße hinterlegt, wird eine Gebinde-Zeile
+**nicht** gebucht, sondern zurückgestellt: „5 Kisten" als 5 Stück zu buchen
+wäre ein Fehler um Faktor 24. Trage `stueck_pro_gebinde` in
+`data/artikel.csv` nach und führe `./inventur.py zuordnen` aus.
 
 **Abfragen:**
 

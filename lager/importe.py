@@ -11,6 +11,10 @@ from .zuordnung import alias_lernen, sammelregel_treffer, zuordnen
 SPALTEN_SCHLUESSEL = {
     "name": ["artikel", "bezeichnung", "produkt", "ware", "name"],
     "bestand": ["bestand", "menge", "anzahl", "stueck", "stück", "ist"],
+    "gesamt": ["gesamt", "summe", "total"],
+    "lager": ["menge lager", "lager"],
+    "nummer": ["nr.", "nr ", "nummer", "artikelnr"],
+    "selektor": ["selektor", "schacht", "slot"],
     "mindestbestand": ["mindest", "meldebestand", "soll", "minimum"],
     "gebinde": ["gebinde", "vpe", "verpackung", "karton", "kiste"],
     "kategorie": ["kategorie", "gruppe", "warengruppe"],
@@ -19,13 +23,30 @@ SPALTEN_SCHLUESSEL = {
 }
 
 
+# Ein Spaltenkopf ist kurz. Laengere Zellen sind Ueberschriften oder
+# Erklaertexte - die duerfen nicht als Kopfzeile durchgehen, sonst wird eine
+# Zeile wie "Produkte ohne Selektor sind nicht im Automaten" zur Kopfzeile.
+MAX_KOPF_LAENGE = 40
+
+
 def _spalte_finden(kopf, schluesselwoerter):
     for i, zelle in enumerate(kopf):
         text = str(zelle or "").strip().lower()
+        if not text or len(text) > MAX_KOPF_LAENGE:
+            continue
         for wort in schluesselwoerter:
             if wort in text:
                 return i
     return None
+
+
+def _ist_kopfzeile(zeile):
+    """Eine Kopfzeile hat eine Artikelspalte und mehrere kurze Beschriftungen."""
+    if _spalte_finden(zeile, SPALTEN_SCHLUESSEL["name"]) is None:
+        return False
+    kurze = [z for z in zeile
+             if z is not None and 0 < len(str(z).strip()) <= MAX_KOPF_LAENGE]
+    return len(kurze) >= 2
 
 
 def _zahl(wert, standard=0):
@@ -37,7 +58,7 @@ def _zahl(wert, standard=0):
         return standard
 
 
-def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None):
+def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None, mengenspalte="gesamt"):
     """Liest die Lager-Excel ein und bucht sie als ANFANGSBESTAND.
 
     Erkennt die Kopfzeile selbst, damit die Datei nicht vorher aufbereitet
@@ -54,7 +75,7 @@ def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None):
     # Kopfzeile = erste Zeile, in der eine Artikelspalte erkennbar ist.
     kopf_index = None
     for i, zeile in enumerate(zeilen[:20]):
-        if _spalte_finden(zeile, SPALTEN_SCHLUESSEL["name"]) is not None:
+        if _ist_kopfzeile(zeile):
             kopf_index = i
             break
     if kopf_index is None:
@@ -68,6 +89,15 @@ def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None):
     if idx["name"] is None:
         raise ValueError("Keine Artikelspalte erkannt.")
 
+    # Welche Spalte den Bestand liefert, haengt davon ab, was gefuehrt werden
+    # soll: der Gesamtbestand ueber Lager und Automaten, oder nur das Lager.
+    if mengenspalte == "gesamt":
+        idx["bestand"] = idx["gesamt"] or idx["lager"] or idx["bestand"]
+    elif mengenspalte == "lager":
+        idx["bestand"] = idx["lager"] or idx["bestand"]
+    if idx["bestand"] is None:
+        raise ValueError("Keine Mengenspalte erkannt.")
+
     protokoll = {"neu": 0, "aktualisiert": 0, "zusammengefasst": 0, "uebersprungen": 0}
 
     for zeile in zeilen[kopf_index + 1:]:
@@ -80,12 +110,19 @@ def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None):
             protokoll["uebersprungen"] += 1
             continue
 
+        # Summenzeilen am Tabellenende sind keine Artikel.
+        if normalisieren(name).split(" ")[0] in ("GESAMT", "SUMME", "TOTAL"):
+            protokoll["uebersprungen"] += 1
+            continue
+
         menge = _zahl(hole("bestand"))
         gebinde = _zahl(hole("gebinde"), 1) or 1
         mindest = _zahl(hole("mindestbestand"))
         kategorie = str(hole("kategorie") or "").strip()
         lieferant = str(hole("lieferant") or "").strip()
         ean = str(hole("ean") or "").strip()
+        nummer = str(hole("nummer") or "").strip().rstrip(".0") if hole("nummer") else ""
+        selektor = str(hole("selektor") or "").strip()
 
         # Faellt die Zeile unter einen Sammelartikel? Dann wird sie dorthin
         # gebucht, statt eine eigene Sorte anzulegen. Mehrere Sortenzeilen
@@ -101,6 +138,8 @@ def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None):
                 vorhanden.stueck_pro_gebinde = gebinde
             if kategorie and not vorhanden.kategorie:
                 vorhanden.kategorie = kategorie
+            if selektor and not vorhanden.selektor:
+                vorhanden.selektor = selektor
             protokoll["zusammengefasst"] += 1
         else:
             norm = normalisieren(name)
@@ -111,6 +150,8 @@ def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None):
             if vorhanden:
                 vorhanden.mindestbestand = mindest or vorhanden.mindestbestand
                 vorhanden.stueck_pro_gebinde = gebinde or vorhanden.stueck_pro_gebinde
+                vorhanden.nummer = nummer or vorhanden.nummer
+                vorhanden.selektor = selektor or vorhanden.selektor
                 protokoll["aktualisiert"] += 1
 
         if vorhanden:
@@ -120,6 +161,8 @@ def anfangsbestand_aus_excel(lager, pfad, datum=None, blatt=None):
             lager.artikel[artikel_id] = Artikel(
                 artikel_id=artikel_id,
                 name=name,
+                nummer=nummer,
+                selektor=selektor,
                 kategorie=kategorie,
                 stueck_pro_gebinde=gebinde,
                 mindestbestand=mindest,
@@ -209,14 +252,27 @@ def belege_buchen(lager, pfad, typ, quelle_standard="", automatisch_anlegen=Fals
                     "datum": datum, "quelle": quelle, "bezeichnung": bezeichnung,
                     "menge": menge, "einheit": einheit or "stueck", "beleg": beleg,
                     "ean": ean, "vorschlag": "", "guete": f"{guete:.2f}",
+                    "hinweis": "kein passender Artikel gefunden",
                 })
                 continue
 
         # Einkauf kann in Gebinden geliefert werden - Bestand fuehren wir in Stueck.
         stueck = menge
         artikel = lager.artikel[artikel_id]
-        if einheit.startswith("gebinde") or einheit in ("kiste", "karton", "vpe"):
-            stueck = menge * max(1, artikel.stueck_pro_gebinde)
+        in_gebinden = einheit.startswith("gebinde") or einheit in ("kiste", "karton", "vpe")
+        if in_gebinden:
+            if artikel.stueck_pro_gebinde <= 1:
+                # Ohne Gebindegroesse waeren "5 Kisten" faelschlich 5 Stueck.
+                # Lieber zurueckstellen als den Bestand um Faktor 24 verfehlen.
+                offen.append({
+                    "datum": datum, "quelle": quelle, "bezeichnung": bezeichnung,
+                    "menge": menge, "einheit": einheit, "beleg": beleg, "ean": ean,
+                    "vorschlag": artikel_id, "guete": "1.00",
+                    "hinweis": f"Gebindegroesse fehlt - stueck_pro_gebinde fuer "
+                               f"'{artikel.name}' in data/artikel.csv eintragen",
+                })
+                continue
+            stueck = menge * artikel.stueck_pro_gebinde
 
         lager.buchen(Bewegung(
             datum=datum, typ=typ, artikel_id=artikel_id, menge=stueck,
@@ -228,7 +284,7 @@ def belege_buchen(lager, pfad, typ, quelle_standard="", automatisch_anlegen=Fals
 
 
 OFFEN_FELDER = ["datum", "quelle", "bezeichnung", "menge", "einheit",
-                "beleg", "ean", "vorschlag", "guete"]
+                "beleg", "ean", "vorschlag", "guete", "hinweis"]
 
 
 def offene_schreiben(offen, pfad):

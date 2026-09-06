@@ -21,6 +21,8 @@ OFFEN_CSV = os.path.join(DATA, "offene_zuordnungen.csv")
 
 ARTIKEL_FELDER = [
     "artikel_id",
+    "nummer",
+    "selektor",
     "name",
     "kategorie",
     "stueck_pro_gebinde",
@@ -72,6 +74,8 @@ class Sammelregel:
 class Artikel:
     artikel_id: str
     name: str
+    nummer: str = ""     # eure interne Artikelnummer aus der Lagerliste
+    selektor: str = ""   # Schachtnummer im Automaten Glueckstadt
     kategorie: str = ""
     stueck_pro_gebinde: int = 1
     mindestbestand: int = 0
@@ -173,6 +177,8 @@ def laden():
         a = Artikel(
             artikel_id=zeile["artikel_id"].strip(),
             name=zeile["name"].strip(),
+            nummer=zeile.get("nummer", "").strip(),
+            selektor=zeile.get("selektor", "").strip(),
             kategorie=zeile.get("kategorie", "").strip(),
             stueck_pro_gebinde=int(zeile.get("stueck_pro_gebinde") or 1),
             mindestbestand=int(zeile.get("mindestbestand") or 0),
@@ -231,6 +237,8 @@ def speichern(lager):
     _schreib_csv(ARTIKEL_CSV, ARTIKEL_FELDER, [
         {
             "artikel_id": a.artikel_id,
+            "nummer": a.nummer,
+            "selektor": a.selektor,
             "name": a.name,
             "kategorie": a.kategorie,
             "stueck_pro_gebinde": a.stueck_pro_gebinde,

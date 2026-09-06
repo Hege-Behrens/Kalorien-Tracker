@@ -30,15 +30,18 @@ def _speichern(lager):
 def _offene_melden(lager, ergebnis):
     offen = importe.offene_aktualisieren(lager, ergebnis["offen"], daten.OFFEN_CSV)
     if offen:
-        print(f"\n{len(offen)} Zeile(n) konnten nicht zugeordnet werden.")
-        print(f"Sie stehen in {os.path.relpath(daten.OFFEN_CSV, daten.BASIS)} und wurden NICHT gebucht.")
-        print("Trage dort in der Spalte 'vorschlag' die passende artikel_id ein und fuehre aus:")
-        print("    ./inventur.py zuordnen")
+        print(f"\n{len(offen)} Zeile(n) wurden NICHT gebucht - sie stehen in "
+              f"{os.path.relpath(daten.OFFEN_CSV, daten.BASIS)}:")
+        for zeile in offen:
+            print(f"  - {zeile['bezeichnung']}: {zeile['hinweis']}")
+        print("Fehlende Zuordnung: artikel_id in die Spalte 'vorschlag' eintragen.")
+        print("Danach:  ./inventur.py zuordnen")
 
 
 def cmd_anfangsbestand(args):
     lager = daten.laden()
-    protokoll = importe.anfangsbestand_aus_excel(lager, args.datei, datum=args.datum, blatt=args.blatt)
+    protokoll = importe.anfangsbestand_aus_excel(
+        lager, args.datei, datum=args.datum, blatt=args.blatt, mengenspalte=args.mengenspalte)
     _speichern(lager)
     print(f"Artikel neu angelegt: {protokoll['neu']}, aktualisiert: {protokoll['aktualisiert']}, "
           f"zu Sammelartikeln zusammengefasst: {protokoll['zusammengefasst']}, "
@@ -88,9 +91,14 @@ def cmd_zuordnen(args):
             rest.append(zeile)
             continue
 
+        artikel = lager.artikel[artikel_id]
         menge = int(zeile["menge"])
         if zeile.get("einheit", "").startswith("gebinde"):
-            menge *= max(1, lager.artikel[artikel_id].stueck_pro_gebinde)
+            if artikel.stueck_pro_gebinde <= 1:
+                print(f"'{artikel.name}': Gebindegroesse fehlt weiterhin - uebersprungen.")
+                rest.append(zeile)
+                continue
+            menge *= artikel.stueck_pro_gebinde
 
         typ = "VERKAUF" if zeile.get("quelle") == "automat" else "EINKAUF"
         lager.buchen(daten.Bewegung(
@@ -220,6 +228,8 @@ def main():
     a.add_argument("datei")
     a.add_argument("--datum", help="Stichtag der Inventur (Standard: heute)")
     a.add_argument("--blatt", help="Name des Tabellenblatts")
+    a.add_argument("--mengenspalte", choices=("gesamt", "lager"), default="gesamt",
+                   help="gesamt = Lager plus Automaten (Standard), lager = nur das Lager")
     a.set_defaults(func=cmd_anfangsbestand)
 
     e = unter.add_parser("einkauf", help="Rechnungspositionen als Wareneingang buchen")
