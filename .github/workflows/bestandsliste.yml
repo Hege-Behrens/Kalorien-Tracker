@@ -2,8 +2,11 @@ name: Woechentliche Bestandsliste
 
 on:
   schedule:
-    # Montags 06:00 UTC = 07:00 MEZ / 08:00 MESZ
-    - cron: "0 6 * * 1"
+    # Montags 10:00 UTC = 12:00 Uhr deutscher Sommerzeit.
+    # Achtung: GitHub rechnet in UTC ohne Zeitumstellung. Ab Ende Oktober
+    # entspricht dieser Eintrag 11:00 Uhr deutscher Zeit; fuer punktgenau
+    # 12 Uhr muesste er dann auf "0 11 * * 1" geaendert werden.
+    - cron: "0 10 * * 1"
   workflow_dispatch:
 
 jobs:
@@ -21,10 +24,10 @@ jobs:
 
       - name: Bestandsliste erzeugen und versenden
         env:
-          ICLOUD_EMAIL: ${{ secrets.ICLOUD_EMAIL }}
-          ICLOUD_APP_PASSWORD: ${{ secrets.ICLOUD_APP_PASSWORD }}
-          # Die Empfaenger stehen in data/einstellungen.csv. Das Secret wird nur
-          # ausgewertet, wenn dort nichts hinterlegt ist.
+          MAIL_ABSENDER: ${{ secrets.MAIL_ABSENDER }}
+          MAIL_PASSWORT: ${{ secrets.MAIL_PASSWORT }}
+          # Die Empfaenger stehen in data/einstellungen.csv. Diese Variable
+          # wird nur ausgewertet, wenn dort nichts hinterlegt ist.
           BESTANDSLISTE_EMPFAENGER: ${{ secrets.BESTANDSLISTE_EMPFAENGER }}
         run: python inventur.py bericht --mail
 

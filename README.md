@@ -189,8 +189,8 @@ genannt, gilt der größte davon.
 
 ## Wöchentlicher Versand
 
-`.github/workflows/bestandsliste.yml` läuft montags früh und verschickt die
-Liste per iCloud-SMTP.
+`.github/workflows/bestandsliste.yml` läuft **montags um 12 Uhr** und
+verschickt die Liste per SMTP.
 
 Die Empfänger stehen in `data/einstellungen.csv` und werden hier gesetzt:
 
@@ -204,12 +204,26 @@ Für den Absender braucht es zwei GitHub-Secrets im Repository
 
 | Secret | Inhalt |
 |---|---|
-| `ICLOUD_EMAIL` | Absenderadresse |
-| `ICLOUD_APP_PASSWORD` | App-spezifisches Passwort von appleid.apple.com |
+| `MAIL_ABSENDER` | Absenderadresse, z.B. `hegebehrens.rechnung@gmail.com` |
+| `MAIL_PASSWORT` | App-Passwort des Anbieters |
 
-Das App-Passwort gehört ausschließlich dorthin — nicht in eine Datei im
-Repository. Lokal genügen dieselben Werte als Umgebungsvariablen
-(siehe `.env.example`).
+Der SMTP-Server wird aus der Domain der Absenderadresse abgeleitet (Gmail,
+iCloud und T-Online sind hinterlegt), lässt sich aber mit `SMTP_HOST` und
+`SMTP_PORT` überschreiben. Das App-Passwort gehört ausschließlich in die
+GitHub-Secrets — nicht in eine Datei im Repository. Lokal genügen dieselben
+Werte als Umgebungsvariablen (siehe `.env.example`).
+
+Ein App-Passwort ist nötig, weil weder Google noch Apple SMTP mit dem
+normalen Kontopasswort zulassen:
+
+- Gmail: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+  (setzt Zwei-Faktor-Authentifizierung voraus)
+- iCloud: [appleid.apple.com](https://appleid.apple.com) → Anmelden und Sicherheit
+
+**Zur Uhrzeit:** GitHub führt Zeitpläne in UTC aus und kennt keine
+Zeitumstellung. Der Eintrag `0 10 * * 1` trifft in der Sommerzeit 12 Uhr; ab
+Ende Oktober entspricht er 11 Uhr deutscher Zeit und müsste für punktgenau
+12 Uhr auf `0 11 * * 1` geändert werden.
 
 ## Test
 
