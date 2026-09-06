@@ -1,0 +1,33 @@
+name: Woechentliche Bestandsliste
+
+on:
+  schedule:
+    # Montags 06:00 UTC = 07:00 MEZ / 08:00 MESZ
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  bestandsliste:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Abhaengigkeiten installieren
+        run: pip install openpyxl
+
+      - name: Bestandsliste erzeugen und versenden
+        env:
+          ICLOUD_EMAIL: ${{ secrets.ICLOUD_EMAIL }}
+          ICLOUD_APP_PASSWORD: ${{ secrets.ICLOUD_APP_PASSWORD }}
+          BESTANDSLISTE_EMPFAENGER: ${{ secrets.BESTANDSLISTE_EMPFAENGER }}
+        run: python inventur.py bericht --mail
+
+      - name: Bericht als Artefakt sichern
+        uses: actions/upload-artifact@v4
+        with:
+          name: bestandsliste
+          path: berichte/*.xlsx
