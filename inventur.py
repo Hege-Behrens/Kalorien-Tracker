@@ -329,10 +329,16 @@ def cmd_mailpaket(args):
 
     # Das Logo wird als eingebetteter Anhang mitgeschickt; im HTML verweist
     # cid:logo.png darauf. Der Dateiname bildet die Kennung.
+    # CSV statt Excel: der Anhang wird beim automatischen Versand als Text
+    # durchgereicht: je kleiner, desto zuverlaessiger kommt er unverfaelscht an.
+    # Die formatierte Fassung steht im Mailtext, die Excel-Datei bleibt im
+    # Repository fuer alle, die sie brauchen.
+    csv_pfad = os.path.join(BERICHTE, f"bestandsliste_{stand.isoformat()}.csv")
+    bericht.als_csv(lager, csv_pfad)
     anhaenge = [{
-        "filename": f"ProVend_Bestandsliste_{stand.isoformat()}.xlsx",
-        "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "content": kodieren(pfad),
+        "filename": f"ProVend_Bestandsliste_{stand.isoformat()}.csv",
+        "mimeType": "text/csv",
+        "content": kodieren(csv_pfad),
     }]
     logo, _ = marke.logo_fuer_einbettung(240)
     if logo:

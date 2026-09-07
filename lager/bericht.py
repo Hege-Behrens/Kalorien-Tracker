@@ -288,6 +288,34 @@ def als_excel(lager, pfad):
     return pfad
 
 
+def als_csv(lager, pfad):
+    """Bestandsliste als CSV - schlanker Mailanhang zum Weiterverarbeiten.
+
+    Die formatierte Fassung steht im Mailtext; der Anhang dient dem Sortieren
+    und Filtern. CSV statt Excel, weil der Anhang beim automatischen Versand
+    als Text durchgereicht wird und dabei klein und unverfaelschbar bleiben
+    muss.
+    """
+    import csv
+
+    spalten = [
+        ("Artikel", "name"),
+        ("Bestand", "bestand"),
+        ("Mindestbestand", "mindestbestand"),
+        ("Verbrauch pro Tag", "verbrauch_pro_tag"),
+        ("Reichweite (Tage)", "reichweite_tage"),
+        ("Status", "status"),
+        ("Bestellen (Gebinde)", "bestellvorschlag_gebinde"),
+        ("Lieferant", "lieferant"),
+    ]
+    with open(pfad, "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.writer(f, delimiter=";")
+        w.writerow([titel for titel, _ in spalten])
+        for z in zeilen(lager):
+            w.writerow([z[feld] for _, feld in spalten])
+    return pfad
+
+
 def als_html(lager, logo_cid="logo"):
     """Bestandsliste als E-Mail im Erscheinungsbild der Marke.
 
@@ -401,7 +429,8 @@ def als_html(lager, logo_cid="logo"):
   <tr><td style="padding:12px 28px 24px;">{tabelle}</td></tr>
 
   <tr><td style="padding:0 28px 28px;font:400 12px/1.6 Helvetica,Arial,sans-serif;color:#6B7280;">
-    Die vollständige Liste aller {werte["artikel"]} Artikel liegt als Excel-Datei im Anhang.
+    Die vollständige Liste aller {werte["artikel"]} Artikel liegt als CSV-Datei im
+    Anhang — sie öffnet sich in Excel und lässt sich dort sortieren und filtern.
   </td></tr>
 
   <tr><td style="padding:16px 28px;background:#{primaer};
