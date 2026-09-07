@@ -110,8 +110,14 @@ Zeilen werden erkannt und übersprungen, nur die neuen kommen dazu.
 ./inventur.py bericht --mail
 ```
 
-**Mindestbestände aus dem Verbrauch ableiten** (sobald ein paar Wochen
-Verkaufsdaten vorliegen):
+**Mindestbestände** — übergangsweise für alle Artikel dieselbe Schwelle:
+
+```bash
+./inventur.py mindestbestaende --pauschal 5
+```
+
+Aus dem gemessenen Verbrauch ableiten (sobald ein paar Wochen Verkaufsdaten
+vorliegen):
 
 ```bash
 ./inventur.py mindestbestaende --puffer 14

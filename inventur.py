@@ -263,6 +263,21 @@ def cmd_stichtag(args):
 def cmd_mindestbestaende(args):
     """Zeigt Vorschlaege aus dem gemessenen Verbrauch, optional gleich uebernehmen."""
     lager = daten.laden()
+
+    if args.pauschal is not None:
+        # Uebergangsloesung, solange kein Verbrauch gemessen wurde: eine
+        # einheitliche Schwelle ist grob, aber besser als gar keine Warnung.
+        for a in lager.artikel.values():
+            if a.aktiv:
+                a.mindestbestand = args.pauschal
+        _speichern(lager)
+        anzahl = len([a for a in lager.artikel.values() if a.aktiv])
+        print(f"Mindestbestand fuer {anzahl} Artikel auf {args.pauschal} gesetzt.")
+        print("Sobald Verkaufsdaten vorliegen, mit  ./inventur.py mindestbestaende  "
+              "aus dem gemessenen Verbrauch ableiten.\n")
+        print(bericht.als_text(lager, nur_warnungen=True))
+        return
+
     vorschlaege = bericht.mindestbestand_vorschlaege(lager, puffer_tage=args.puffer)
     if not vorschlaege:
         print("Noch keine Verkaufsdaten - ohne gemessenen Verbrauch gibt es nichts "
@@ -448,6 +463,8 @@ def main():
     m.add_argument("--puffer", type=int, default=14,
                    help="Wie viele Tage Verbrauch die Schwelle abdecken soll (Standard 14)")
     m.add_argument("--uebernehmen", action="store_true", help="Vorschlaege in den Artikelstamm schreiben")
+    m.add_argument("--pauschal", type=int, metavar="N",
+                   help="Uebergangsweise fuer alle Artikel dieselbe Schwelle setzen")
     m.set_defaults(func=cmd_mindestbestaende)
 
     mp = unter.add_parser("mailpaket",

@@ -82,6 +82,9 @@ def zeilen(lager):
             "reichweite_tage": round(reichweite, 1) if reichweite is not None else "",
             "bestellvorschlag_stueck": vorschlag_gebinde * gebinde,
             "bestellvorschlag_gebinde": vorschlag_gebinde,
+            # Solange keine Gebindegroesse hinterlegt ist, sind es schlicht
+            # Stueck - "5 Gebinde" waere hier eine gefaehrliche Fehlinformation.
+            "bestelleinheit": "Geb." if gebinde > 1 else "Stk.",
             "lieferant": a.lieferant,
         })
 
@@ -129,7 +132,8 @@ def als_text(lager, nur_warnungen=False):
     linien = [kopf, "-" * len(kopf)]
     for z in daten:
         reich = f"{z['reichweite_tage']} T" if z["reichweite_tage"] != "" else "-"
-        bestellen = f"{z['bestellvorschlag_gebinde']} Geb." if z["bestellvorschlag_gebinde"] else "-"
+        bestellen = (f"{z['bestellvorschlag_gebinde']} {z['bestelleinheit']}"
+                     if z["bestellvorschlag_gebinde"] else "-")
         linien.append(
             f"{z['name'][:33]:<34}{z['bestand']:>9}{z['mindestbestand']:>6}"
             f"{reich:>9}  {z['status']:<14}{bestellen:>10}"
@@ -177,7 +181,8 @@ def als_excel(lager, pfad):
         ("Verbrauch\npro Tag", "verbrauch_pro_tag", 13, "komma"),
         ("Reichweite\n(Tage)", "reichweite_tage", 13, "komma"),
         ("Status", "status", 17, "mitte"),
-        ("Bestellen\n(Gebinde)", "bestellvorschlag_gebinde", 13, "zahl"),
+        ("Bestellen", "bestellvorschlag_gebinde", 13, "zahl"),
+        ("Einheit", "bestelleinheit", 9, "mitte"),
         ("Lieferant", "lieferant", 18, "links"),
     ]
     letzte_spalte = get_column_letter(len(spalten))
@@ -305,7 +310,8 @@ def als_csv(lager, pfad):
         ("Verbrauch pro Tag", "verbrauch_pro_tag"),
         ("Reichweite (Tage)", "reichweite_tage"),
         ("Status", "status"),
-        ("Bestellen (Gebinde)", "bestellvorschlag_gebinde"),
+        ("Bestellen", "bestellvorschlag_gebinde"),
+        ("Einheit", "bestelleinheit"),
         ("Lieferant", "lieferant"),
     ]
     with open(pfad, "w", newline="", encoding="utf-8-sig") as f:
@@ -361,7 +367,8 @@ def als_html(lager, logo_cid="logo"):
         for nummer, z in enumerate(offene):
             hintergrund = hell if nummer % 2 else "FFFFFF"
             reichweite = f'{z["reichweite_tage"]} Tage' if z["reichweite_tage"] != "" else "–"
-            bestellen = f'{z["bestellvorschlag_gebinde"]} Geb.' if z["bestellvorschlag_gebinde"] else "–"
+            bestellen = (f'{z["bestellvorschlag_gebinde"]} {z["bestelleinheit"]}'
+                         if z["bestellvorschlag_gebinde"] else "–")
             felder = (
                 f'<td style="padding:9px 10px;background:#{hintergrund};'
                 f'font:600 13px/1.4 Helvetica,Arial,sans-serif;color:#{primaer};">{z["name"]}</td>'
