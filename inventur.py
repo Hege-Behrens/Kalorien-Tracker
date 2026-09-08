@@ -532,6 +532,83 @@ def cmd_mailpaket(args):
     print(bericht.als_text(lager, nur_warnungen=True))
 
 
+def _vensoft_daten(aus_datei):
+    """Stammdaten und Verkaeufe, aus der Schnittstelle oder einer Datei."""
+    import json as _json
+
+    from lager import vensoft
+
+    if aus_datei:
+        with open(aus_datei, encoding="utf-8") as f:
+            gespeichert = _json.load(f)
+        return gespeichert["core"], gespeichert["sales"]
+    try:
+        return vensoft.stammdaten(), vensoft.alle_verkaeufe_ab(0)[0]
+    except vensoft.VensoftFehler as fehler:
+        sys.exit(f"Abruf fehlgeschlagen: {fehler}")
+
+
+def cmd_tagesbericht(args):
+    """Taeglicher Umsatzbericht aus den Vensoft-Verkaufsdaten."""
+    from datetime import timedelta
+
+    from lager import umsatz, vensoft
+
+    lager = daten.laden()
+    stamm, verkaeufe = _vensoft_daten(args.aus_datei)
+    tabelle = vensoft.uebersetzungstabelle(stamm)
+
+    if args.datum:
+        tag, _ = zeitmodul.lesen(args.datum)
+        if tag is None:
+            sys.exit(f"Datum nicht lesbar: {args.datum}")
+        tag = tag.date()
+    else:
+        # Standard ist der Vortag: der laufende Tag waere unvollstaendig.
+        tag = date.today() - timedelta(days=1)
+
+    def artikelname(bezeichnung):
+        artikel_id, _, _ = zuordnen(lager, "vensoft", bezeichnung)
+        return lager.artikel[artikel_id].name if artikel_id else bezeichnung
+
+    zahlen = umsatz.tageszahlen(verkaeufe, tabelle, tag, artikelname=artikelname)
+    text = umsatz.als_text(zahlen)
+    print(text)
+
+    if args.mailpaket:
+        import base64
+        import json as _json
+
+        empfaenger = versand.empfaenger_liste(lager)
+        if not empfaenger:
+            sys.exit("Keine Empfaenger gesetzt.")
+        logo, _ = marke_logo()
+        paket = {
+            "to": empfaenger,
+            "subject": f"ProVend Tagesbericht - {tag.strftime('%d.%m.%Y')}",
+            "body": text,
+            "htmlBody": bericht.tagesbericht_html(lager, zahlen),
+            "attachments": [],
+        }
+        if logo:
+            with open(logo, "rb") as f:
+                paket["attachments"].append({
+                    "filename": "logo.png", "mimeType": "image/png", "inline": True,
+                    "content": base64.b64encode(f.read()).decode(),
+                })
+        ziel = args.mailpaket if isinstance(args.mailpaket, str) else os.path.join(
+            BERICHTE, "tagespaket.json")
+        with open(ziel, "w", encoding="utf-8") as f:
+            _json.dump(paket, f, ensure_ascii=False)
+        print(f"\nVersandpaket: {os.path.relpath(ziel, daten.BASIS)} "
+              f"({os.path.getsize(ziel)/1024:.0f} KB) an {', '.join(empfaenger)}")
+
+
+def marke_logo():
+    from lager import marke
+    return marke.logo_fuer_einbettung(240)
+
+
 def cmd_bericht(args):
     lager = daten.laden()
     pfad, text, _ = _bericht_erzeugen(lager)
@@ -630,6 +707,13 @@ def main():
                           help="Versandfertiges JSON erzeugen (fuer den Versand aus einer Routine)")
     mp.add_argument("--ausgabe", help="Zieldatei (Standard: berichte/versandpaket.json)")
     mp.set_defaults(func=cmd_mailpaket)
+
+    tb = unter.add_parser("tagesbericht", help="Taeglicher Umsatzbericht aus den Verkaufsdaten")
+    tb.add_argument("--datum", help="Auszuwertender Tag (Standard: gestern)")
+    tb.add_argument("--aus-datei", dest="aus_datei", help="Vensoft-Daten aus einer JSON-Datei")
+    tb.add_argument("--mailpaket", nargs="?", const=True, default=False,
+                    help="Versandfertiges JSON schreiben (optional mit Pfad)")
+    tb.set_defaults(func=cmd_tagesbericht)
 
     b = unter.add_parser("bericht", help="Excel-Bestandsliste erzeugen, optional per Mail")
     b.add_argument("--mail", action="store_true", help="Bericht an die hinterlegten Empfaenger senden")

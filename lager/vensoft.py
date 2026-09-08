@@ -118,10 +118,15 @@ def uebersetzungstabelle(stamm):
     def kennzeichen(eintrag):
         return (eintrag.get("name") or "").strip("$")
 
+    orte = {s["id"]: s["name"] for s in stamm.get("vensoft_site", [])}
     return {
         "produkt": {p["id"]: p["name"] for p in stamm.get("vensoft_product", [])},
         "automat": {m["id"]: m["serial_number"] for m in stamm.get("vensoft_machine", [])},
-        "standort": {s["id"]: s["name"] for s in stamm.get("vensoft_site", [])},
+        "standort": orte,
+        # Fuer Berichte ist der Standortname aussagekraeftiger als die
+        # Seriennummer des Automaten.
+        "ort_je_automat": {m["id"]: orte.get(m.get("parent_id"), m["serial_number"])
+                           for m in stamm.get("vensoft_machine", [])},
         "status": {s["id"]: kennzeichen(s) for s in stamm.get("vensoft_sale_status", [])},
     }
 

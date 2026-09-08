@@ -122,6 +122,31 @@ Transaktionsnummer, wird diese verwendet. Ein Export, der bereits gebuchte
 Zeiträume erneut enthält, kann daher gefahrlos eingelesen werden: die bekannten
 Zeilen werden erkannt und übersprungen, nur die neuen kommen dazu.
 
+**Täglicher Umsatzbericht:**
+
+```bash
+./inventur.py tagesbericht                      # gestern
+./inventur.py tagesbericht --datum 2026-09-07
+./inventur.py tagesbericht --mailpaket          # versandfertiges JSON
+```
+
+Umsatz, Verkäufe, Vergleich zum Vortag und zum 7-Tage-Schnitt, aufgeteilt nach
+Standort und Produkt. Standardmäßig für **gestern** — der laufende Tag wäre
+unvollständig.
+
+Der Umsatz ist die Summe der Bruttopreise aus Vensoft; der Pfandanteil wird
+getrennt ausgewiesen. Die Zahlungsfelder der Schnittstelle sind leer, daher
+lässt sich aus den Daten nicht ableiten, ob das Pfand im Preis enthalten ist
+oder aufgeschlagen wird.
+
+Produkte erscheinen unter **euren** Artikelnamen, nicht unter den
+Vensoft-Bezeichnungen — sonst stünde ein falsch beschrifteter Schacht auch im
+Bericht unter dem falschen Namen.
+
+Fehlversuche ohne Warenausgabe (leerer Schacht, Störung, Abbruch) zählen nicht
+zum Umsatz, werden aber ausgewiesen: mehrere an einem Tag sind ein Hinweis auf
+einen Automaten, der Aufmerksamkeit braucht.
+
 **Abfragen:**
 
 ```bash

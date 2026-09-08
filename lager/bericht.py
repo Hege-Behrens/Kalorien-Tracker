@@ -449,3 +449,125 @@ def als_html(lager, logo_cid="logo"):
   </td></tr>
 </table>
 </body></html>"""
+
+
+def umsatz_wochentag(tag):
+    from .umsatz import WOCHENTAGE
+    return WOCHENTAGE[tag.weekday()]
+
+
+def tagesbericht_html(lager, zahlen, logo_cid="logo.png"):
+    """Taeglicher Umsatzbericht als E-Mail im Erscheinungsbild der Marke."""
+    from . import marke
+    from .umsatz import euro, zahl
+
+    farben = marke.palette(lager)
+    primaer, akzent, hell = farben["primaer"], farben["akzent"], farben["hell"]
+    d = zahlen
+
+    def entwicklung(jetzt, vorher):
+        if not vorher:
+            return ""
+        anteil = (jetzt - vorher) / vorher * 100
+        if abs(anteil) < 0.5:
+            return ('<div style="font:400 11px/1.4 Helvetica,Arial,sans-serif;color:#9CA3AF;'
+                    'padding-top:3px;">unveraendert zum Vortag</div>')
+        farbe = "059669" if anteil > 0 else "DC2626"
+        return (f'<div style="font:600 11px/1.4 Helvetica,Arial,sans-serif;color:#{farbe};'
+                f'padding-top:3px;">{anteil:+.0f} % zum Vortag</div>')
+
+    def kachel(wert, beschriftung, farbe, zusatz=""):
+        return (
+            f'<td align="center" width="50%" style="padding:16px 8px;background:#{hell};'
+            f'border-radius:6px;">'
+            f'<div style="font:700 27px/1.1 Helvetica,Arial,sans-serif;color:#{farbe};">{wert}</div>'
+            f'<div style="font:400 11px/1.4 Helvetica,Arial,sans-serif;color:#6B7280;'
+            f'text-transform:uppercase;letter-spacing:.06em;padding-top:5px;">{beschriftung}</div>'
+            f'{zusatz}</td>'
+        )
+
+    def tabelle(titel, zeilen_daten):
+        if not zeilen_daten:
+            return ""
+        zeilen_html = []
+        for nummer, (name, anzahl, betrag) in enumerate(zeilen_daten):
+            grund = hell if nummer % 2 else "FFFFFF"
+            zeilen_html.append(
+                f'<tr>'
+                f'<td style="padding:7px 10px;background:#{grund};'
+                f'font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#374151;">{name}</td>'
+                f'<td align="right" style="padding:7px 10px;background:#{grund};'
+                f'font:600 13px/1.4 Helvetica,Arial,sans-serif;color:#{primaer};">{anzahl}</td>'
+                f'<td align="right" style="padding:7px 10px;background:#{grund};'
+                f'font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#6B7280;">'
+                f'{betrag:.2f}&nbsp;€</td></tr>'
+            )
+        return (
+            f'<tr><td style="padding:18px 28px 4px;font:700 11px/1.6 Helvetica,Arial,sans-serif;'
+            f'color:#{primaer};text-transform:uppercase;letter-spacing:.07em;">{titel}</td></tr>'
+            f'<tr><td style="padding:4px 28px 0;"><table width="100%" cellpadding="0" '
+            f'cellspacing="0" role="presentation" style="border-collapse:collapse;">'
+            f'{"".join(zeilen_html)}</table></td></tr>'
+        )
+
+    stoerungstext = ""
+    if d["stoerungen"]:
+        art = ", ".join(f"{n}× {k}" for k, n in sorted(d["stoerungen"].items()))
+        stoerungstext = (
+            f'<tr><td style="padding:16px 28px 0;">'
+            f'<div style="padding:11px 14px;background:#FEF3C7;border-radius:6px;'
+            f'font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#92400E;">'
+            f'<strong>Fehlversuche ohne Warenausgabe:</strong> {art}</div></td></tr>'
+        )
+
+    logo_block = (
+        f'<img src="cid:{logo_cid}" width="130" alt="ProVend" '
+        f'style="display:block;border:0;width:130px;max-width:130px;height:auto;">'
+        if marke.logo_pfad() else ""
+    )
+    pfandzeile = (f'<div style="font:400 11px/1.4 Helvetica,Arial,sans-serif;color:#9CA3AF;'
+                  f'padding-top:3px;">davon {euro(d["pfand"])} € Pfand</div>') if d["pfand"] else ""
+
+    return f"""<!doctype html>
+<html lang="de"><body style="margin:0;padding:24px 12px;background:#F4F4F5;">
+<table align="center" width="600" cellpadding="0" cellspacing="0" role="presentation"
+       style="max-width:600px;background:#FFFFFF;border-radius:10px;overflow:hidden;
+              box-shadow:0 1px 3px rgba(0,0,0,.08);">
+  <tr><td style="padding:24px 28px 18px;">
+    <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+      <td align="left" valign="middle">{logo_block}</td>
+      <td align="right" valign="middle">
+        <div style="font:700 18px/1.2 Helvetica,Arial,sans-serif;color:#{primaer};">Tagesbericht</div>
+        <div style="font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6B7280;">
+          {umsatz_wochentag(d['datum'])}, {d['datum'].strftime('%d.%m.%Y')}</div>
+      </td>
+    </tr></table>
+  </td></tr>
+
+  <tr><td style="height:4px;background:#{akzent};font-size:0;line-height:0;">&nbsp;</td></tr>
+
+  <tr><td style="padding:22px 28px 6px;">
+    <table width="100%" cellpadding="0" cellspacing="8" role="presentation"><tr>
+      {kachel(f"{euro(d['umsatz'])} €", "Umsatz", primaer,
+              entwicklung(d['umsatz'], d['vortag_umsatz']) + pfandzeile)}
+      {kachel(d['verkaeufe'], "Verkäufe", akzent,
+              entwicklung(d['verkaeufe'], d['vortag_verkaeufe']))}
+    </tr></table>
+  </td></tr>
+
+  <tr><td style="padding:10px 28px 0;font:400 12px/1.6 Helvetica,Arial,sans-serif;color:#6B7280;">
+    {d['rueckblick']}-Tage-Schnitt: <strong style="color:#{primaer};">
+    {euro(d['schnitt_umsatz'])} €</strong> und {zahl(d['schnitt_verkaeufe'])} Verkäufe pro Tag
+  </td></tr>
+
+  {tabelle("Nach Standort", d["je_standort"])}
+  {tabelle("Meistverkauft", d["je_produkt"][:8])}
+  {stoerungstext}
+
+  <tr><td style="padding:22px 28px 0;">&nbsp;</td></tr>
+  <tr><td style="padding:14px 28px;background:#{primaer};
+                 font:400 11px/1.5 Helvetica,Arial,sans-serif;color:rgba(255,255,255,.7);">
+    ProVend Deutschland GbR · Automatisch erzeugt
+  </td></tr>
+</table>
+</body></html>"""

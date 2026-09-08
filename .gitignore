@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 berichte/*.xlsx
 berichte/versandpaket.json
+berichte/tagespaket.json
