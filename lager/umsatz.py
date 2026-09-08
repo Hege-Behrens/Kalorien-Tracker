@@ -2,6 +2,12 @@
 
 Anders als der Bestand kommt der Umsatz nicht aus dem Bewegungsjournal: dort
 stehen nur Mengen. Die Preise liefert die Schnittstelle.
+
+Gemeldet wird der Bruttopreis, also inklusive Mehrwertsteuer. Das Pfand ist im
+ausgezeichneten Preis bereits enthalten und wird deshalb nur nachrichtlich
+ausgewiesen, nicht aufgeschlagen. Aus den Daten allein ist das nicht
+erkennbar - die Zahlungsfelder der Schnittstelle sind leer -, es ist von
+ProVend bestaetigt.
 """
 
 from collections import Counter, defaultdict

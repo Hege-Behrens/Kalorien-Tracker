@@ -134,10 +134,11 @@ Umsatz, Verkäufe, Vergleich zum Vortag und zum 7-Tage-Schnitt, aufgeteilt nach
 Standort und Produkt. Standardmäßig für **gestern** — der laufende Tag wäre
 unvollständig.
 
-Der Umsatz ist die Summe der Bruttopreise aus Vensoft; der Pfandanteil wird
-getrennt ausgewiesen. Die Zahlungsfelder der Schnittstelle sind leer, daher
-lässt sich aus den Daten nicht ableiten, ob das Pfand im Preis enthalten ist
-oder aufgeschlagen wird.
+Der Umsatz ist die Summe der Bruttopreise aus Vensoft, also inklusive
+Mehrwertsteuer. Das **Pfand ist im ausgezeichneten Preis enthalten** (bestätigt
+von ProVend, aus den Daten allein nicht ableitbar: die Zahlungsfelder der
+Schnittstelle sind leer). Es wird deshalb nur nachrichtlich ausgewiesen und
+nicht aufgeschlagen.
 
 Produkte erscheinen unter **euren** Artikelnamen, nicht unter den
 Vensoft-Bezeichnungen — sonst stünde ein falsch beschrifteter Schacht auch im
