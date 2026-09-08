@@ -129,7 +129,7 @@ def als_text(zahlen):
     if d["je_standort"]:
         zeilen += ["", "Nach Standort"]
         for name, anzahl, umsatz in d["je_standort"]:
-            zeilen.append(f"  {name[:34]:<36}{anzahl:>4}{umsatz:>9.2f} EUR")
+            zeilen.append(f"  {name[:34]:<36}{anzahl:>4}{euro(umsatz):>9} EUR")
 
     if d["je_produkt"]:
         zeilen += ["", "Meistverkauft"]

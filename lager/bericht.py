@@ -471,7 +471,7 @@ def tagesbericht_html(lager, zahlen, logo_cid="logo.png"):
         anteil = (jetzt - vorher) / vorher * 100
         if abs(anteil) < 0.5:
             return ('<div style="font:400 11px/1.4 Helvetica,Arial,sans-serif;color:#9CA3AF;'
-                    'padding-top:3px;">unveraendert zum Vortag</div>')
+                    'padding-top:3px;">unverändert zum Vortag</div>')
         farbe = "059669" if anteil > 0 else "DC2626"
         return (f'<div style="font:600 11px/1.4 Helvetica,Arial,sans-serif;color:#{farbe};'
                 f'padding-top:3px;">{anteil:+.0f} % zum Vortag</div>')
@@ -500,7 +500,7 @@ def tagesbericht_html(lager, zahlen, logo_cid="logo.png"):
                 f'font:600 13px/1.4 Helvetica,Arial,sans-serif;color:#{primaer};">{anzahl}</td>'
                 f'<td align="right" style="padding:7px 10px;background:#{grund};'
                 f'font:400 13px/1.4 Helvetica,Arial,sans-serif;color:#6B7280;">'
-                f'{betrag:.2f}&nbsp;€</td></tr>'
+                f'{euro(betrag)}&nbsp;€</td></tr>'
             )
         return (
             f'<tr><td style="padding:18px 28px 4px;font:700 11px/1.6 Helvetica,Arial,sans-serif;'
