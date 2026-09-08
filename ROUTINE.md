@@ -1,4 +1,22 @@
-# Wöchentlicher Versand über eine Claude-Routine
+# Automatische Abläufe
+
+Zwei Routinen laufen über diese Claude-Sitzung. Sie wecken die bestehende
+Sitzung, statt eine neue zu starten — nur so ist der Zugriff auf das
+Repository, auf Vensoft und auf Gmail gegeben.
+
+| Routine | Zeitpunkt | Was sie tut |
+|---|---|---|
+| ProVend Tagesbericht | täglich 7:00 | Verkäufe von Vensoft abbuchen, Umsatzbericht des Vortags versenden |
+| ProVend Bestandsliste | montags 12:00 | Bestandsliste mit Warnungen und Bestellvorschlägen versenden |
+
+Beide gehen an Hegebehrens@icloud.com, sebgri@t-online.de und
+info@provenddeutschland.de.
+
+**Zur Uhrzeit:** Zeitpläne laufen in UTC ohne Zeitumstellung. Die Einträge
+`0 5 * * *` und `0 10 * * 1` treffen in der Sommerzeit 7:00 und 12:00 Uhr; ab
+Ende Oktober entsprechen sie 6:00 und 11:00 Uhr deutscher Zeit.
+
+## Wöchentlicher Versand über eine Claude-Routine
 
 Der Versand läuft ohne GitHub-Passwort und ohne App-Passwort: Eine Routine
 startet montags eine Claude-Sitzung, die den Bericht erzeugt und ihn über die
