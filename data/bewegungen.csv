@@ -66,3 +66,4 @@ datum,typ,artikel_id,menge,beleg,bezeichnung,quelle,notiz
 2026-09-07,VERKAUF,sprite-033l,1,vensoft:3093107537604511407,"Sprite 0,33l","Blomestraße 44, Heiligenstedten",aehnlichkeit
 2026-09-08,VERKAUF,28-black-acai-025,1,vensoft:3093904208160622361,"28 Black Acai 0,25",Christian-IV- Straße 32 GL,aehnlichkeit
 2026-09-08,VERKAUF,monster-ultra-white-05,1,vensoft:3093892546351335138,"Monster Ultra White 0,5","Blomestraße 44, Heiligenstedten",alias
+2026-09-08,KORREKTUR,schwipp-schwapp-033l,1,korrektur-2026-09-08,"Schwipp Schwapp 0,33l",inventur,Inventur uebersah 1 Stueck: Verkauf am 07.09. bei gezaehltem Bestand 0

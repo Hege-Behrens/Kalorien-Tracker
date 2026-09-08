@@ -353,6 +353,53 @@ def cmd_stichtag(args):
           f"alles davor gilt als im Anfangsbestand enthalten.")
 
 
+def _verbrauch_aus_vensoft(lager, aus_datei, tage):
+    """Taeglicher Verbrauch je Artikel aus der Vensoft-Historie.
+
+    Nicht aus dem Bewegungsjournal: dort stehen nur Verkaeufe ab dem Stichtag.
+    Die Historie reicht weiter zurueck und ist die bessere Grundlage - aber nur
+    ihr juengerer Teil, weil das Geschaeft waechst und aeltere Monate die
+    Schwellen zu niedrig ansetzen wuerden.
+    """
+    import json as _json
+    from collections import Counter
+    from datetime import timedelta
+
+    from lager import vensoft
+
+    if aus_datei:
+        with open(aus_datei, encoding="utf-8") as f:
+            gespeichert = _json.load(f)
+        stamm, verkaeufe = gespeichert["core"], gespeichert["sales"]
+    else:
+        stamm = vensoft.stammdaten()
+        verkaeufe, _ = vensoft.alle_verkaeufe_ab(0)
+
+    tabelle = vensoft.uebersetzungstabelle(stamm)
+    grenze = date.today() - timedelta(days=tage)
+
+    gezaehlt, zeitpunkte = Counter(), []
+    for verkauf in verkaeufe:
+        if not vensoft.ist_ausgegeben(verkauf, tabelle):
+            continue
+        zeitpunkt, _ = zeitmodul.lesen((verkauf.get("tstamp") or "")[:19])
+        if not zeitpunkt or zeitpunkt.date() < grenze:
+            continue
+        bezeichnung = tabelle["produkt"].get(verkauf.get("product_id"), "")
+        if not bezeichnung or bezeichnung == "Unbekannt":
+            continue
+        artikel_id, _, _ = zuordnen(lager, "vensoft", bezeichnung)
+        if artikel_id:
+            gezaehlt[artikel_id] += 1
+            zeitpunkte.append(zeitpunkt.date())
+
+    if not zeitpunkte:
+        sys.exit("Im gewaehlten Zeitraum keine verwertbaren Verkaeufe gefunden.")
+
+    return ({aid: n / tage for aid, n in gezaehlt.items()},
+            (min(zeitpunkte).isoformat(), max(zeitpunkte).isoformat()))
+
+
 def cmd_mindestbestaende(args):
     """Zeigt Vorschlaege aus dem gemessenen Verbrauch, optional gleich uebernehmen."""
     lager = daten.laden()
@@ -371,7 +418,14 @@ def cmd_mindestbestaende(args):
         print(bericht.als_text(lager, nur_warnungen=True))
         return
 
-    vorschlaege = bericht.mindestbestand_vorschlaege(lager, puffer_tage=args.puffer)
+    verbrauch = None
+    if args.aus_vensoft or args.aus_datei:
+        verbrauch, zeitraum = _verbrauch_aus_vensoft(lager, args.aus_datei, args.tage)
+        print(f"Grundlage: Vensoft-Verkaeufe der letzten {args.tage} Tage "
+              f"({zeitraum[0]} bis {zeitraum[1]})\n")
+
+    vorschlaege = bericht.mindestbestand_vorschlaege(
+        lager, puffer_tage=args.puffer, verbrauch=verbrauch)
     if not vorschlaege:
         print("Noch keine Verkaufsdaten - ohne gemessenen Verbrauch gibt es nichts "
               "abzuleiten. Erst ein paar Wochen Verkaufszahlen einlesen.")
@@ -562,6 +616,12 @@ def main():
     m.add_argument("--puffer", type=int, default=14,
                    help="Wie viele Tage Verbrauch die Schwelle abdecken soll (Standard 14)")
     m.add_argument("--uebernehmen", action="store_true", help="Vorschlaege in den Artikelstamm schreiben")
+    m.add_argument("--aus-vensoft", dest="aus_vensoft", action="store_true",
+                   help="Verbrauch aus der Vensoft-Historie statt aus dem Journal")
+    m.add_argument("--aus-datei", dest="aus_datei",
+                   help="Vensoft-Daten aus einer gespeicherten JSON-Datei lesen")
+    m.add_argument("--tage", type=int, default=60,
+                   help="Wie weit die Verbrauchsmessung zurueckreicht (Standard 60)")
     m.add_argument("--pauschal", type=int, metavar="N",
                    help="Uebergangsweise fuer alle Artikel dieselbe Schwelle setzen")
     m.set_defaults(func=cmd_mindestbestaende)

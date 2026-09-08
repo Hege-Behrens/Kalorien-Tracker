@@ -1,52 +1,52 @@
 artikel_id,nummer,selektor,name,kategorie,stueck_pro_gebinde,mindestbestand,lieferant,ean,aktiv
-28-black-acai-025,13,61,"28 Black Acai 0,25",,1,5,,,ja
-28-black-acai-zero-025,14,62,"28 Black Acai ZERO 0,25",,1,5,,,ja
-7days-croissant,,,7Days Croissant,,1,5,,,ja
-bifi-caratza,33,36,BiFi Caratza,,1,5,,,ja
-bifi-original-20gr,3,44,BiFi Original 20gr,,1,5,,,ja
-bifi-roll-45gr,4,30,BiFi Roll 45gr.,,1,5,,,ja
-chio-popcorn-suess,45,,Chio Popcorn süß,,1,5,,,ja
-chips-frisch-gesalzen,,,Chips Frisch gesalzen,,1,5,,,ja
-chipsfrisch-ungarisch-40gr,5,16,Chipsfrisch Ungarisch 40gr.,,1,5,,,ja
-coca-cola-033l,1,"66, 67","Coca Cola 0,33l",,1,5,,,ja
+28-black-acai-025,13,61,"28 Black Acai 0,25",,1,4,,,ja
+28-black-acai-zero-025,14,62,"28 Black Acai ZERO 0,25",,1,4,,,ja
+7days-croissant,,,7Days Croissant,,1,1,,,ja
+bifi-caratza,33,36,BiFi Caratza,,1,6,,,ja
+bifi-original-20gr,3,44,BiFi Original 20gr,,1,2,,,ja
+bifi-roll-45gr,4,30,BiFi Roll 45gr.,,1,4,,,ja
+chio-popcorn-suess,45,,Chio Popcorn süß,,1,1,,,ja
+chips-frisch-gesalzen,,,Chips Frisch gesalzen,,1,1,,,ja
+chipsfrisch-ungarisch-40gr,5,16,Chipsfrisch Ungarisch 40gr.,,1,1,,,ja
+coca-cola-033l,1,"66, 67","Coca Cola 0,33l",,1,8,,,ja
 coca-cola-zero-033l,2,65,"Coca Cola Zero 0,33l",,1,5,,,ja
-corny-schoko,39,,Corny Schoko,,1,5,,,ja
-elfbar-basisgeraet,9,24,Elfbar Basisgerät,,1,5,,,ja
-elfbar-pods,,20,Elfbar Pods (alle Sorten),,1,5,,,ja
-erdnuesse-ueltje-salzig,42,47,Erdnüsse Ültje salzig,,1,5,,,ja
+corny-schoko,39,,Corny Schoko,,1,1,,,ja
+elfbar-basisgeraet,9,24,Elfbar Basisgerät,,1,1,,,ja
+elfbar-pods,,20,Elfbar Pods (alle Sorten),,1,10,,,ja
+erdnuesse-ueltje-salzig,42,47,Erdnüsse Ültje salzig,,1,1,,,ja
 fanta-orange-033l,21,51,"Fanta Orange 0,33l",,1,5,,,ja
-fanta-tutti-frutti-033l,22,52,"Fanta Tutti Frutti 0,33l",,1,5,,,ja
-haribo-goldbaeren,58,45,Haribo Goldbären,,1,5,,,ja
-haribo-pico-balla,61,10,Haribo Pico-Balla,,1,5,,,ja
-kinder-bueno,38,31,Kinder Bueno,,1,5,,,ja
-kinder-cards,54,26,Kinder Cards,,1,5,,,ja
-kinder-country,34,27,Kinder Country,,1,5,,,ja
-kinderriegel,6,40,Kinderriegel,,1,5,,,ja
-kitkat-chunky,56,46,KitKat Chunky,,1,5,,,ja
-kitkat-vollmilch,59,41,KitKat Vollmilch,,1,5,,,ja
-kitkat-white,35,34,KitKat White,,1,5,,,ja
-knoppers-riegel,57,25,Knoppers Riegel,,1,5,,,ja
-kondome-rossmann,47,,Kondome (Rossmann),,1,5,,,ja
-mezzo-mix-orange-033l,23,,"Mezzo Mix Orange 0,33l",,1,5,,,ja
-milka-nussini,37,32,Milka Nussini,,1,5,,,ja
-mms-crisp-36gr,41,37,MMs Crisp 36gr.,,1,5,,,ja
-mms-peanut-36gr,36,33,MMs Peanut 36gr.,,1,5,,,ja
-monster-lando-norris,,,Monster Lando Norris,,1,5,,,ja
-monster-strawberry,28,57,Monster Strawberry,,1,5,,,ja
-monster-top-speed,,,Monster Top Speed,,1,5,,,ja
-monster-ultra-fiesta-05,15,56,"Monster Ultra Fiesta 0,5",,1,5,,,ja
-monster-ultra-white-05,16,55,"Monster Ultra White 0,5",,1,5,,,ja
-nicnac,46,35,NicNac,,1,5,,,ja
-pommbaer-original-30g,44,14,Pommbär original 30g,,1,5,,,ja
-red-bull-025,18,53,"Red Bull 0,25",,1,5,,,ja
-red-bull-pink-2026-025,2,63,"Red Bull Pink 2026 0,25",,1,5,,,ja
-red-bull-spring,19,,Red Bull spring,,1,5,,,ja
-red-bull-summer-025,55,60,"Red Bull Summer 0,25",,1,5,,,ja
-red-bull-zero-025,17,54,"Red Bull ZERO 0,25",,1,5,,,ja
-redbull-fuji-apfel-ingwer,,,Redbull Fuji-Apfel-Ingwer,,1,5,,,ja
-schwangerschaftstest-rossmann,4,12,Schwangerschaftstest (Rossmann),,1,5,,,ja
-schwipp-schwapp-033l,52,64,"Schwipp Schwapp 0,33l",,1,5,,,ja
-snickers-riegel-50gr,7,42,Snickers Riegel 50gr.,,1,5,,,ja
-sprite-033l,24,50,"Sprite 0,33l",,1,5,,,ja
-tonys-schokolade,53,,Tonys Schokolade,,1,5,,,ja
-twix-riegel-50-gr,8,43,Twix Riegel 50 gr.,,1,5,,,ja
+fanta-tutti-frutti-033l,22,52,"Fanta Tutti Frutti 0,33l",,1,3,,,ja
+haribo-goldbaeren,58,45,Haribo Goldbären,,1,1,,,ja
+haribo-pico-balla,61,10,Haribo Pico-Balla,,1,1,,,ja
+kinder-bueno,38,31,Kinder Bueno,,1,1,,,ja
+kinder-cards,54,26,Kinder Cards,,1,1,,,ja
+kinder-country,34,27,Kinder Country,,1,1,,,ja
+kinderriegel,6,40,Kinderriegel,,1,2,,,ja
+kitkat-chunky,56,46,KitKat Chunky,,1,1,,,ja
+kitkat-vollmilch,59,41,KitKat Vollmilch,,1,2,,,ja
+kitkat-white,35,34,KitKat White,,1,2,,,ja
+knoppers-riegel,57,25,Knoppers Riegel,,1,1,,,ja
+kondome-rossmann,47,,Kondome (Rossmann),,1,1,,,ja
+mezzo-mix-orange-033l,23,,"Mezzo Mix Orange 0,33l",,1,1,,,ja
+milka-nussini,37,32,Milka Nussini,,1,1,,,ja
+mms-crisp-36gr,41,37,MMs Crisp 36gr.,,1,3,,,ja
+mms-peanut-36gr,36,33,MMs Peanut 36gr.,,1,2,,,ja
+monster-lando-norris,,,Monster Lando Norris,,1,1,,,ja
+monster-strawberry,28,57,Monster Strawberry,,1,4,,,ja
+monster-top-speed,,,Monster Top Speed,,1,1,,,ja
+monster-ultra-fiesta-05,15,56,"Monster Ultra Fiesta 0,5",,1,4,,,ja
+monster-ultra-white-05,16,55,"Monster Ultra White 0,5",,1,9,,,ja
+nicnac,46,35,NicNac,,1,4,,,ja
+pommbaer-original-30g,44,14,Pommbär original 30g,,1,4,,,ja
+red-bull-025,18,53,"Red Bull 0,25",,1,9,,,ja
+red-bull-pink-2026-025,2,63,"Red Bull Pink 2026 0,25",,1,1,,,ja
+red-bull-spring,19,,Red Bull spring,,1,3,,,ja
+red-bull-summer-025,55,60,"Red Bull Summer 0,25",,1,4,,,ja
+red-bull-zero-025,17,54,"Red Bull ZERO 0,25",,1,3,,,ja
+redbull-fuji-apfel-ingwer,,,Redbull Fuji-Apfel-Ingwer,,1,1,,,ja
+schwangerschaftstest-rossmann,4,12,Schwangerschaftstest (Rossmann),,1,1,,,ja
+schwipp-schwapp-033l,52,64,"Schwipp Schwapp 0,33l",,1,4,,,ja
+snickers-riegel-50gr,7,42,Snickers Riegel 50gr.,,1,3,,,ja
+sprite-033l,24,50,"Sprite 0,33l",,1,6,,,ja
+tonys-schokolade,53,,Tonys Schokolade,,1,1,,,ja
+twix-riegel-50-gr,8,43,Twix Riegel 50 gr.,,1,2,,,ja

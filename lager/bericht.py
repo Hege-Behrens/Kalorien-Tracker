@@ -97,26 +97,29 @@ def warnungen(lager):
     return [z for z in zeilen(lager) if z["status"] != "OK"]
 
 
-def mindestbestand_vorschlaege(lager, fenster=VERBRAUCHSFENSTER_TAGE, puffer_tage=14):
+def mindestbestand_vorschlaege(lager, fenster=VERBRAUCHSFENSTER_TAGE, puffer_tage=14,
+                               verbrauch=None):
     """Schlaegt je Artikel einen Mindestbestand aus dem gemessenen Verbrauch vor.
 
     Die Schwelle soll den Zeitraum abdecken, der zwischen Warnung und
     Nachschub vergeht - Einkauf inklusive. Artikel ohne Verkaeufe im Fenster
     bekommen keinen Vorschlag: dort fehlt schlicht die Grundlage.
     """
-    verbrauch = verbrauch_pro_tag(lager, fenster)
+    if verbrauch is None:
+        verbrauch = verbrauch_pro_tag(lager, fenster)
     vorschlaege = []
     for a in lager.artikel.values():
         if not a.aktiv:
             continue
         pro_tag = verbrauch.get(a.artikel_id, 0.0)
-        if pro_tag <= 0:
-            continue
         vorschlaege.append({
             "artikel_id": a.artikel_id,
             "name": a.name,
             "verbrauch_pro_tag": round(pro_tag, 2),
             "bisher": a.mindestbestand,
+            # Ohne gemessenen Verkauf reicht eine Schwelle von 1: der Artikel
+            # meldet sich dann erst, wenn er wirklich leer ist, statt dauerhaft
+            # in der Warnliste zu stehen.
             "vorschlag": max(1, round(pro_tag * puffer_tage)),
         })
     vorschlaege.sort(key=lambda v: -v["verbrauch_pro_tag"])
