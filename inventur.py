@@ -17,7 +17,7 @@ from datetime import date
 
 from lager import bericht, daten, importe, versand
 from lager import zeit as zeitmodul
-from lager.zuordnung import alias_lernen
+from lager.zuordnung import alias_lernen, zuordnen
 
 BERICHTE = os.path.join(daten.BASIS, "berichte")
 
@@ -84,6 +84,99 @@ def cmd_verkauf(args):
         if len(ergebnis["ohne_zeit"]) > 10:
             print(f"  ... und {len(ergebnis['ohne_zeit']) - 10} weitere")
     _offene_melden(lager, ergebnis)
+
+
+def cmd_vensoft(args):
+    """Holt die Verkaeufe aus der Vensoft-Schnittstelle und bucht sie ab.
+
+    Gebucht wird nur, was den Automaten tatsaechlich verlassen hat und nach
+    dem Stichtag liegt. Als Belegnummer dient die Verkaufs-ID von Vensoft -
+    damit ist eine Doppelbuchung ausgeschlossen, auch wenn derselbe Zeitraum
+    mehrfach abgerufen wird.
+    """
+    import json as _json
+
+    from lager import vensoft
+
+    lager = daten.laden()
+
+    if args.aus_datei:
+        with open(args.aus_datei, encoding="utf-8") as f:
+            gespeichert = _json.load(f)
+        stamm = gespeichert["core"]
+        verkaeufe = gespeichert["sales"]
+        print(f"Aus Datei gelesen: {len(verkaeufe)} Verkaufsdatensaetze")
+    else:
+        try:
+            stamm = vensoft.stammdaten()
+            letzte = int(lager.einstellungen.get("vensoft_letzte_id", "0"))
+            verkaeufe, letzte = vensoft.alle_verkaeufe_ab(letzte)
+            lager.einstellungen["vensoft_letzte_id"] = str(letzte)
+        except vensoft.VensoftFehler as fehler:
+            sys.exit(f"Abruf fehlgeschlagen: {fehler}")
+        print(f"Abgerufen: {len(verkaeufe)} Verkaufsdatensaetze")
+
+    tabelle = vensoft.uebersetzungstabelle(stamm)
+    stichtag, _ = zeitmodul.lesen(lager.einstellungen.get("verkauf_ab", ""))
+    bekannt = lager.positionen()
+
+    gebucht, umsatz = 0, 0.0
+    verworfen, vor_stichtag, dubletten = 0, 0, 0
+    offen = []
+
+    for verkauf in sorted(verkaeufe, key=lambda v: v.get("tstamp") or ""):
+        if not vensoft.ist_ausgegeben(verkauf, tabelle):
+            verworfen += 1
+            continue
+
+        zeitpunkt, _ = zeitmodul.lesen((verkauf.get("tstamp") or "")[:19])
+        if stichtag and zeitpunkt and zeitpunkt < stichtag:
+            vor_stichtag += 1
+            continue
+
+        bezeichnung = tabelle["produkt"].get(verkauf.get("product_id"), "")
+        if not bezeichnung or bezeichnung == "Unbekannt":
+            verworfen += 1
+            continue
+
+        beleg = f"vensoft:{verkauf['id']}"
+        if (beleg, daten.normalisieren(bezeichnung)) in bekannt:
+            dubletten += 1
+            continue
+
+        artikel_id, guete, methode = zuordnen(lager, "vensoft", bezeichnung)
+        if artikel_id is None:
+            offen.append({
+                "datum": zeitpunkt.date().isoformat() if zeitpunkt else daten.heute(),
+                "quelle": "vensoft", "bezeichnung": bezeichnung, "menge": 1,
+                "einheit": "stueck", "beleg": beleg, "ean": "", "vorschlag": "",
+                "guete": f"{guete:.2f}", "hinweis": "kein passender Lagerartikel",
+            })
+            continue
+
+        lager.buchen(daten.Bewegung(
+            datum=zeitpunkt.date().isoformat() if zeitpunkt else daten.heute(),
+            typ="VERKAUF", artikel_id=artikel_id, menge=1, beleg=beleg,
+            bezeichnung=bezeichnung,
+            quelle=tabelle["automat"].get(verkauf.get("parent_id"), "automat"),
+            notiz=methode,
+        ))
+        # Zuordnung merken, damit sie beim naechsten Mal sofort greift.
+        alias_lernen(lager, "vensoft", bezeichnung, artikel_id)
+        gebucht += 1
+        umsatz += vensoft.betrag(verkauf)
+
+    _speichern(lager)
+
+    print(f"{gebucht} Verkauf/Verkaeufe gebucht, Umsatz {umsatz:.2f} EUR")
+    if vor_stichtag:
+        print(f"{vor_stichtag} vor dem Stichtag uebersprungen")
+    if dubletten:
+        print(f"{dubletten} bereits gebucht")
+    if verworfen:
+        print(f"{verworfen} ohne Warenausgabe (Stoerung, Abbruch, leerer Schacht) "
+              f"oder ohne Produktzuordnung")
+    _offene_melden(lager, {"offen": offen})
 
 
 def cmd_zuordnen(args):
@@ -425,6 +518,12 @@ def main():
     v = unter.add_parser("verkauf", help="Verkaufszahlen der Automaten abbuchen")
     v.add_argument("datei")
     v.set_defaults(func=cmd_verkauf)
+
+    vs = unter.add_parser("vensoft", help="Verkaeufe aus der Vensoft-Schnittstelle abrufen und buchen")
+    vs.add_argument("--aus-datei", dest="aus_datei",
+                    help="Statt abzurufen aus einer gespeicherten JSON-Datei lesen "
+                         "(Schluessel 'core' und 'sales')")
+    vs.set_defaults(func=cmd_vensoft)
 
     z = unter.add_parser("zuordnen", help="Offene Zuordnungen nachbuchen")
     z.set_defaults(func=cmd_zuordnen)

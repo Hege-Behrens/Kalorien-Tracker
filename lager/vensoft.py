@@ -100,3 +100,39 @@ def alle_verkaeufe_ab(letzte_id=0, hoechstens=50):
 def verkaeufe_csv(von, bis):
     """Fertige CSV fuer einen Zeitraum (Datum als JJJJ-MM-TT)."""
     return abrufen("salescsv", {"dateFrom": von, "dateTo": bis}, roh=True)
+
+
+# Nur bei diesen Status hat Ware den Automaten tatsaechlich verlassen. "empty",
+# "error" und "cancel" sind Fehlversuche - wer sie mitzaehlt, bucht Ware ab,
+# die nie ausgegeben wurde, und der Bestand laeuft unbemerkt ins Minus.
+WARE_AUSGEGEBEN = {
+    "sale_status_success",
+    "sale_status_test",
+    "sale_status_free",
+    "sale_status_token",
+}
+
+
+def uebersetzungstabelle(stamm):
+    """Baut aus den Stammdaten die Zuordnung von IDs zu Klarnamen."""
+    def kennzeichen(eintrag):
+        return (eintrag.get("name") or "").strip("$")
+
+    return {
+        "produkt": {p["id"]: p["name"] for p in stamm.get("vensoft_product", [])},
+        "automat": {m["id"]: m["serial_number"] for m in stamm.get("vensoft_machine", [])},
+        "standort": {s["id"]: s["name"] for s in stamm.get("vensoft_site", [])},
+        "status": {s["id"]: kennzeichen(s) for s in stamm.get("vensoft_sale_status", [])},
+    }
+
+
+def ist_ausgegeben(verkauf, tabelle):
+    return tabelle["status"].get(verkauf.get("sale_status_id")) in WARE_AUSGEGEBEN
+
+
+def betrag(verkauf):
+    """Bruttopreis in Euro. Die Schnittstelle liefert bereits Euro, nicht Cent."""
+    try:
+        return float(verkauf.get("price_gross") or 0)
+    except (TypeError, ValueError):
+        return 0.0

@@ -56,7 +56,28 @@ Nur das Lager führen:
 ./inventur.py anfangsbestand Lagerbestand.xlsx --mengenspalte lager
 ```
 
-**Laufend — Rechnungen und Verkäufe:**
+**Laufend — Verkäufe direkt aus der Automatensoftware:**
+
+```bash
+./inventur.py vensoft
+```
+
+Holt die Verkäufe über die Vensoft-Schnittstelle und bucht sie ab. Zugangsdaten
+kommen aus `VENSOFT_USER` und `VENSOFT_PASS`, die Domain `adapter.vensoft.de`
+muss in der Netzwerkfreigabe der Umgebung stehen.
+
+Gebucht wird nur, was den Automaten wirklich verlassen hat: Vensoft kennt zehn
+Verkaufsstatus, und `empty`, `error` und `cancel` bedeuten, dass **keine** Ware
+ausgegeben wurde. Wer sie mitzählt, bucht Ware ab, die nie den Schacht verlassen
+hat. Als Belegnummer dient die Verkaufs-ID von Vensoft, eine Doppelbuchung ist
+damit ausgeschlossen.
+
+Die Zuordnung der Vensoft-Produkte zu den Lagerartikeln steht fest in
+`data/aliase.csv` und wird **nicht** über Namensähnlichkeit geraten. Grund:
+„Red Bull Spring 2026 0,25" und „Red Bull Pink 2026 0,25" stimmen zu 92 %
+überein — die Ähnlichkeitssuche hätte die Spring-Verkäufe auf Pink gebucht.
+
+**Laufend — Rechnungen und Verkäufe aus Dateien:**
 
 ```bash
 ./inventur.py einkauf rechnung.csv --quelle selgros
