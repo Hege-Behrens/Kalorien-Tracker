@@ -36,6 +36,90 @@ def zahl(wert, stellen=1):
 WOCHENTAGE = ("Montag", "Dienstag", "Mittwoch", "Donnerstag",
               "Freitag", "Samstag", "Sonntag")
 
+MONATE = ("Januar", "Februar", "März", "April", "Mai", "Juni", "Juli",
+          "August", "September", "Oktober", "November", "Dezember")
+
+
+def _aggregat(menge, tabelle, benenne):
+    """Verdichtet eine Menge Verkaeufe zu Summen, Standorten und Produkten."""
+    je_standort = defaultdict(lambda: [0, 0.0])
+    je_produkt = defaultdict(lambda: [0, 0.0])
+    for v in menge:
+        ort = (tabelle.get("ort_je_automat", {}).get(v.get("parent_id"))
+               or tabelle["automat"].get(v.get("parent_id"), "unbekannt"))
+        je_standort[ort][0] += 1
+        je_standort[ort][1] += vensoft.betrag(v)
+
+        name = benenne(tabelle["produkt"].get(v.get("product_id"), "unbekannt"))
+        je_produkt[name][0] += 1
+        je_produkt[name][1] += vensoft.betrag(v)
+
+    return {
+        "verkaeufe": len(menge),
+        "umsatz": sum(vensoft.betrag(v) for v in menge),
+        "pfand": sum(float(v.get("pledge") or 0) for v in menge),
+        "je_standort": sorted(((n, z[0], z[1]) for n, z in je_standort.items()),
+                              key=lambda x: -x[2]),
+        "je_produkt": sorted(((n, z[0], z[1]) for n, z in je_produkt.items()),
+                             key=lambda x: (-x[1], -x[2])),
+    }
+
+
+def _stoerungen(verkaeufe, tabelle, von, bis):
+    """Fehlversuche im Zeitraum: leerer Schacht, Stoerung, Abbruch.
+
+    Sie gehoeren nicht in den Umsatz, sagen aber etwas ueber den Zustand der
+    Automaten - mehrere an einem Tag sind ein Hinweis.
+    """
+    gezaehlt = Counter()
+    for v in verkaeufe:
+        tag = _tag(v)
+        if tag and von <= tag <= bis and not vensoft.ist_ausgegeben(v, tabelle):
+            art = tabelle["status"].get(v.get("sale_status_id"), "?")
+            gezaehlt[art.replace("sale_status_", "")] += 1
+    return dict(gezaehlt)
+
+
+def monatszahlen(verkaeufe, tabelle, jahr, monat, artikelname=None):
+    """Kennzahlen eines Kalendermonats mit Vergleich zum Vormonat."""
+    benenne = artikelname or (lambda name: name)
+    ausgegeben = [v for v in verkaeufe if vensoft.ist_ausgegeben(v, tabelle)]
+
+    erster = date(jahr, monat, 1)
+    letzter = date(jahr + (monat == 12), monat % 12 + 1, 1) - timedelta(days=1)
+    vor_erster = (erster - timedelta(days=1)).replace(day=1)
+    vor_letzter = erster - timedelta(days=1)
+
+    im_monat = [v for v in ausgegeben if erster <= (_tag(v) or date.min) <= letzter]
+    im_vormonat = [v for v in ausgegeben if vor_erster <= (_tag(v) or date.min) <= vor_letzter]
+
+    zahlen = _aggregat(im_monat, tabelle, benenne)
+    vergleich = _aggregat(im_vormonat, tabelle, benenne)
+
+    # Verkaufsstaerkster und -schwaechster Tag: nur Tage mit Verkauf, ein Tag
+    # ohne jeden Verkauf ist meist ein Ausfall und keine Kennzahl.
+    je_tag = defaultdict(lambda: [0, 0.0])
+    for v in im_monat:
+        tag = _tag(v)
+        je_tag[tag][0] += 1
+        je_tag[tag][1] += vensoft.betrag(v)
+    tage = sorted(((t, z[0], z[1]) for t, z in je_tag.items()), key=lambda x: -x[2])
+
+    zahlen.update({
+        "von": erster,
+        "bis": letzter,
+        "tage_im_monat": (letzter - erster).days + 1,
+        "tage_mit_verkauf": len(je_tag),
+        "vormonat": vergleich,
+        "vormonat_name": MONATE[vor_erster.month - 1],
+        "monat_name": MONATE[monat - 1],
+        "jahr": jahr,
+        "bester_tag": tage[0] if tage else None,
+        "schwaechster_tag": tage[-1] if tage else None,
+        "stoerungen": _stoerungen(verkaeufe, tabelle, erster, letzter),
+    })
+    return zahlen
+
 
 def tageszahlen(verkaeufe, tabelle, stichtag, rueckblick=7, artikelname=None):
     """Kennzahlen fuer einen Tag, mit Vergleich zu Vortag und Rueckblick.
@@ -135,6 +219,59 @@ def als_text(zahlen):
         zeilen += ["", "Meistverkauft"]
         for name, anzahl, umsatz in d["je_produkt"][:8]:
             zeilen.append(f"  {name[:34]:<36}{anzahl:>4}{euro(umsatz):>9} EUR")
+
+    if d["stoerungen"]:
+        art = ", ".join(f"{n}x {k}" for k, n in sorted(d["stoerungen"].items()))
+        zeilen += ["", f"Fehlversuche ohne Warenausgabe: {art}"]
+
+    return "\n".join(zeilen)
+
+
+def als_text_monat(zahlen):
+    """Monatsauswertung als Text - die Rueckfallebene der E-Mail."""
+    d = zahlen
+    vor = d["vormonat"]
+
+    def veraenderung(jetzt, vorher):
+        if not vorher:
+            return ""
+        return f"  ({(jetzt - vorher) / vorher * 100:+.0f} % zum Vormonat)"
+
+    zeilen = [
+        f"ProVend Monatsauswertung - {d['monat_name']} {d['jahr']}",
+        "",
+        f"Umsatz          {euro(d['umsatz']):>9} EUR{veraenderung(d['umsatz'], vor['umsatz'])}",
+        f"Verkaeufe       {d['verkaeufe']:>9}{veraenderung(d['verkaeufe'], vor['verkaeufe'])}",
+    ]
+    if d["verkaeufe"]:
+        zeilen += [
+            f"je Verkauf      {euro(d['umsatz'] / d['verkaeufe']):>9} EUR",
+            f"je Tag          {euro(d['umsatz'] / d['tage_im_monat']):>9} EUR  "
+            f"({zahl(d['verkaeufe'] / d['tage_im_monat'])} Verkaeufe)",
+        ]
+    if d["pfand"]:
+        zeilen.append(f"davon Pfand     {euro(d['pfand']):>9} EUR")
+
+    zeilen += ["", f"Vormonat {d['vormonat_name']}: {euro(vor['umsatz'])} EUR "
+                   f"aus {vor['verkaeufe']} Verkaeufen"]
+
+    if d["bester_tag"]:
+        tag, anzahl, betrag = d["bester_tag"]
+        zeilen.append(f"Bester Tag: {tag.strftime('%d.%m.')} mit {euro(betrag)} EUR "
+                      f"aus {anzahl} Verkaeufen")
+        zeilen.append(f"Verkaufstage: {d['tage_mit_verkauf']} von {d['tage_im_monat']}")
+
+    if d["je_standort"]:
+        zeilen += ["", "Nach Standort"]
+        for name, anzahl, betrag in d["je_standort"]:
+            anteil = betrag / d["umsatz"] * 100 if d["umsatz"] else 0
+            zeilen.append(f"  {name[:32]:<34}{anzahl:>5}{euro(betrag):>10} EUR"
+                          f"{zahl(anteil, 0):>5} %")
+
+    if d["je_produkt"]:
+        zeilen += ["", f"Meistverkauft (von {len(d['je_produkt'])} Artikeln)"]
+        for name, anzahl, betrag in d["je_produkt"][:15]:
+            zeilen.append(f"  {name[:32]:<34}{anzahl:>5}{euro(betrag):>10} EUR")
 
     if d["stoerungen"]:
         art = ", ".join(f"{n}x {k}" for k, n in sorted(d["stoerungen"].items()))

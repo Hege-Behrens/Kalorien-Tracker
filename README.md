@@ -148,6 +148,18 @@ Fehlversuche ohne Warenausgabe (leerer Schacht, Störung, Abbruch) zählen nicht
 zum Umsatz, werden aber ausgewiesen: mehrere an einem Tag sind ein Hinweis auf
 einen Automaten, der Aufmerksamkeit braucht.
 
+**Monatsauswertung:**
+
+```bash
+./inventur.py monatsbericht                     # Vormonat
+./inventur.py monatsbericht --monat 2026-08
+./inventur.py monatsbericht --mailpaket
+```
+
+Dieselben Kennzahlen wie im Tagesbericht, über einen Kalendermonat, mit
+Vergleich zum Vormonat, bestem Verkaufstag und Umsatzanteil je Standort. Alle
+verkauften Artikel liegen als CSV im Anhang.
+
 **Abfragen:**
 
 ```bash

@@ -8,13 +8,19 @@ Repository, auf Vensoft und auf Gmail gegeben.
 |---|---|---|
 | ProVend Tagesbericht | täglich 7:00 | Verkäufe von Vensoft abbuchen, Umsatzbericht des Vortags versenden |
 | ProVend Bestandsliste | montags 12:00 | Bestandsliste mit Warnungen und Bestellvorschlägen versenden |
+| ProVend Monatsauswertung | am 1. um 7:30 | Auswertung des Vormonats mit Artikel-CSV versenden |
 
-Beide gehen an Hegebehrens@icloud.com, sebgri@t-online.de und
+Alle drei gehen an Hegebehrens@icloud.com, sebgri@t-online.de und
 info@provenddeutschland.de.
 
+Die Monatsauswertung läuft bewusst eine halbe Stunde nach dem Tagesbericht:
+so sind die Verkäufe des Vortags bereits gebucht, bevor der Monat abgerechnet
+wird.
+
 **Zur Uhrzeit:** Zeitpläne laufen in UTC ohne Zeitumstellung. Die Einträge
-`0 5 * * *` und `0 10 * * 1` treffen in der Sommerzeit 7:00 und 12:00 Uhr; ab
-Ende Oktober entsprechen sie 6:00 und 11:00 Uhr deutscher Zeit.
+`0 5 * * *`, `30 5 1 * *` und `0 10 * * 1` treffen in der Sommerzeit 7:00,
+7:30 und 12:00 Uhr; ab Ende Oktober entsprechen sie 6:00, 6:30 und 11:00 Uhr
+deutscher Zeit.
 
 ## Wöchentlicher Versand über eine Claude-Routine
 

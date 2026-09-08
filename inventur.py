@@ -13,7 +13,7 @@ Beispiele:
 import argparse
 import os
 import sys
-from datetime import date
+from datetime import date, timedelta
 
 from lager import bericht, daten, importe, versand
 from lager import zeit as zeitmodul
@@ -609,6 +609,82 @@ def marke_logo():
     return marke.logo_fuer_einbettung(240)
 
 
+def cmd_monatsbericht(args):
+    """Monatsauswertung: dieselben Zahlen wie taeglich, ueber einen Kalendermonat."""
+    import base64
+    import csv as _csv
+    import json as _json
+
+    from lager import umsatz, vensoft
+
+    lager = daten.laden()
+    stamm, verkaeufe = _vensoft_daten(args.aus_datei)
+    tabelle = vensoft.uebersetzungstabelle(stamm)
+
+    if args.monat:
+        try:
+            jahr, monat = (int(teil) for teil in args.monat.split("-"))
+        except ValueError:
+            sys.exit(f"Monat nicht lesbar: {args.monat} (erwartet JJJJ-MM)")
+    else:
+        # Standard ist der Vormonat - der laufende Monat waere unvollstaendig.
+        erster = date.today().replace(day=1)
+        vormonat = erster - timedelta(days=1)
+        jahr, monat = vormonat.year, vormonat.month
+
+    def artikelname(bezeichnung):
+        artikel_id, _, _ = zuordnen(lager, "vensoft", bezeichnung)
+        return lager.artikel[artikel_id].name if artikel_id else bezeichnung
+
+    zahlen = umsatz.monatszahlen(verkaeufe, tabelle, jahr, monat, artikelname=artikelname)
+    text = umsatz.als_text_monat(zahlen)
+    print(text)
+
+    if not args.mailpaket:
+        return
+
+    empfaenger = versand.empfaenger_liste(lager)
+    if not empfaenger:
+        sys.exit("Keine Empfaenger gesetzt.")
+
+    # Alle verkauften Artikel als CSV - fuer die Buchhaltung und zum Sortieren.
+    os.makedirs(BERICHTE, exist_ok=True)
+    csv_pfad = os.path.join(BERICHTE, f"umsatz_{jahr}-{monat:02d}.csv")
+    with open(csv_pfad, "w", newline="", encoding="utf-8-sig") as f:
+        schreiber = _csv.writer(f, delimiter=";")
+        schreiber.writerow(["Artikel", "Verkaeufe", "Umsatz EUR"])
+        for name, anzahl, betrag in zahlen["je_produkt"]:
+            schreiber.writerow([name, anzahl, f"{betrag:.2f}".replace(".", ",")])
+        schreiber.writerow([])
+        schreiber.writerow(["Gesamt", zahlen["verkaeufe"],
+                            f"{zahlen['umsatz']:.2f}".replace(".", ",")])
+
+    anhaenge = [{
+        "filename": f"ProVend_Umsatz_{jahr}-{monat:02d}.csv",
+        "mimeType": "text/csv",
+        "content": base64.b64encode(open(csv_pfad, "rb").read()).decode(),
+    }]
+    logo, _ = marke_logo()
+    if logo:
+        with open(logo, "rb") as f:
+            anhaenge.append({"filename": "logo.png", "mimeType": "image/png",
+                             "inline": True, "content": base64.b64encode(f.read()).decode()})
+
+    paket = {
+        "to": empfaenger,
+        "subject": f"ProVend Monatsauswertung - {zahlen['monat_name']} {jahr}",
+        "body": text,
+        "htmlBody": bericht.monatsbericht_html(lager, zahlen),
+        "attachments": anhaenge,
+    }
+    ziel = args.mailpaket if isinstance(args.mailpaket, str) else os.path.join(
+        BERICHTE, "monatspaket.json")
+    with open(ziel, "w", encoding="utf-8") as f:
+        _json.dump(paket, f, ensure_ascii=False)
+    print(f"\nVersandpaket: {os.path.relpath(ziel, daten.BASIS)} "
+          f"({os.path.getsize(ziel)/1024:.0f} KB) an {', '.join(empfaenger)}")
+
+
 def cmd_bericht(args):
     lager = daten.laden()
     pfad, text, _ = _bericht_erzeugen(lager)
@@ -714,6 +790,13 @@ def main():
     tb.add_argument("--mailpaket", nargs="?", const=True, default=False,
                     help="Versandfertiges JSON schreiben (optional mit Pfad)")
     tb.set_defaults(func=cmd_tagesbericht)
+
+    mb = unter.add_parser("monatsbericht", help="Monatsauswertung des Vormonats")
+    mb.add_argument("--monat", help="Auszuwertender Monat als JJJJ-MM (Standard: Vormonat)")
+    mb.add_argument("--aus-datei", dest="aus_datei", help="Vensoft-Daten aus einer JSON-Datei")
+    mb.add_argument("--mailpaket", nargs="?", const=True, default=False,
+                    help="Versandfertiges JSON schreiben (optional mit Pfad)")
+    mb.set_defaults(func=cmd_monatsbericht)
 
     b = unter.add_parser("bericht", help="Excel-Bestandsliste erzeugen, optional per Mail")
     b.add_argument("--mail", action="store_true", help="Bericht an die hinterlegten Empfaenger senden")
