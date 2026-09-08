@@ -58,12 +58,11 @@ datum,typ,artikel_id,menge,beleg,bezeichnung,quelle,notiz
 2026-09-07,VERKAUF,coca-cola-zero-033l,1,vensoft:3093163666694997808,"Coca Cola Zero 0,33l",Christian-IV- Straße 32 GL,aehnlichkeit
 2026-09-07,VERKAUF,elfbar-pods,1,vensoft:3093067102391633878,Elfbar Pod Peach Ice 20mg 2x2ml,Christian-IV- Straße 32 GL,sammelartikel:ELFBAR POD
 2026-09-07,VERKAUF,kinderriegel,1,vensoft:3093156701658940928,Kinderriegel,"Blomestraße 44, Heiligenstedten",aehnlichkeit
+2026-09-07,VERKAUF,mezzo-mix-orange-033l,1,vensoft:3092655896031922007,"Schwipp Schwapp 0,33l",Christian-IV- Straße 32 GL,alias
 2026-09-07,VERKAUF,monster-ultra-white-05,1,vensoft:3093107709445145991,"Monster Ultra White 0,5","Blomestraße 44, Heiligenstedten",aehnlichkeit
 2026-09-07,VERKAUF,red-bull-025,1,vensoft:3092713210122340100,"Red Bull 0,25",Christian-IV- Straße 32 GL,aehnlichkeit
 2026-09-07,VERKAUF,red-bull-summer-025,1,vensoft:3093182116649764262,"Red Bull Summer 0,25",Christian-IV- Straße 32 GL,aehnlichkeit
 2026-09-07,VERKAUF,redbull-fuji-apfel-ingwer,1,vensoft:3093157030483985710,Red Bull Fuji Aplef Ingwer,"Blomestraße 44, Heiligenstedten",aehnlichkeit
-2026-09-07,VERKAUF,schwipp-schwapp-033l,1,vensoft:3092655896031922007,"Schwipp Schwapp 0,33l",Christian-IV- Straße 32 GL,aehnlichkeit
 2026-09-07,VERKAUF,sprite-033l,1,vensoft:3093107537604511407,"Sprite 0,33l","Blomestraße 44, Heiligenstedten",aehnlichkeit
 2026-09-08,VERKAUF,28-black-acai-025,1,vensoft:3093904208160622361,"28 Black Acai 0,25",Christian-IV- Straße 32 GL,aehnlichkeit
 2026-09-08,VERKAUF,monster-ultra-white-05,1,vensoft:3093892546351335138,"Monster Ultra White 0,5","Blomestraße 44, Heiligenstedten",alias
-2026-09-08,KORREKTUR,schwipp-schwapp-033l,1,korrektur-2026-09-08,"Schwipp Schwapp 0,33l",inventur,Inventur uebersah 1 Stueck: Verkauf am 07.09. bei gezaehltem Bestand 0
