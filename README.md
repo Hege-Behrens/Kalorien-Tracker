@@ -66,6 +66,12 @@ Holt die Verkäufe über die Vensoft-Schnittstelle und bucht sie ab. Zugangsdate
 kommen aus `VENSOFT_USER` und `VENSOFT_PASS`, die Domain `adapter.vensoft.de`
 muss in der Netzwerkfreigabe der Umgebung stehen.
 
+Die Verkaufsdaten liegen unter `data/vensoft/` und werden nur ergänzt — jeder
+Abruf holt ausschließlich das, was seit der zuletzt gespeicherten Verkaufs-ID
+dazugekommen ist. Nötig ist das, weil die Berichte auch die Vortage für den
+Vergleich brauchen und ohne Zwischenspeicher jedes Mal die gesamte Historie
+abrufen müssten: vier Minuten statt einer Sekunde.
+
 Gebucht wird nur, was den Automaten wirklich verlassen hat: Vensoft kennt zehn
 Verkaufsstatus, und `empty`, `error` und `cancel` bedeuten, dass **keine** Ware
 ausgegeben wurde. Wer sie mitzählt, bucht Ware ab, die nie den Schacht verlassen
