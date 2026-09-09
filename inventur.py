@@ -696,6 +696,31 @@ def cmd_bericht(args):
         print(f"E-Mail versendet an: {', '.join(empfaenger)}")
 
 
+def cmd_sortiment(args):
+    """Sortimentsauswertung: Renner, Schwachdreher, tote Schaechte."""
+    from lager import sortiment as sortiment_modul
+    from lager import vensoft
+
+    lager = daten.laden()
+    stamm, verkaeufe = _vensoft_daten(args.aus_datei, still=True)
+    tabelle = vensoft.uebersetzungstabelle(stamm)
+
+    def artikel_id_zu(bezeichnung):
+        artikel_id, _, _ = zuordnen(lager, "vensoft", bezeichnung)
+        return artikel_id
+
+    zahlen = sortiment_modul.zahlen(verkaeufe, tabelle, lager, artikel_id_zu,
+                                    tage=args.tage)
+    print(sortiment_modul.als_text(zahlen))
+
+    if args.csv:
+        pfad = args.csv if isinstance(args.csv, str) else "berichte/sortiment.csv"
+        os.makedirs(os.path.dirname(pfad) or ".", exist_ok=True)
+        with open(pfad, "w", encoding="utf-8-sig", newline="") as f:
+            f.write(sortiment_modul.als_csv(zahlen))
+        print(f"\nCSV geschrieben: {pfad}")
+
+
 def main():
     p = argparse.ArgumentParser(description="Lagerverwaltung Verkaufsautomaten")
     unter = p.add_subparsers(dest="befehl", required=True)
@@ -790,6 +815,14 @@ def main():
     mb.add_argument("--mailpaket", nargs="?", const=True, default=False,
                     help="Versandfertiges JSON schreiben (optional mit Pfad)")
     mb.set_defaults(func=cmd_monatsbericht)
+
+    so = unter.add_parser("sortiment",
+                          help="Renner und Ladenhueter je Artikel und je Schacht")
+    so.add_argument("--tage", type=int, default=90, help="Zeitfenster in Tagen (Standard: 90)")
+    so.add_argument("--aus-datei", dest="aus_datei", help="Vensoft-Daten aus einer JSON-Datei")
+    so.add_argument("--csv", nargs="?", const=True, default=False,
+                    help="Auswertung als CSV schreiben (optional mit Pfad)")
+    so.set_defaults(func=cmd_sortiment)
 
     b = unter.add_parser("bericht", help="Excel-Bestandsliste erzeugen, optional per Mail")
     b.add_argument("--mail", action="store_true", help="Bericht an die hinterlegten Empfaenger senden")

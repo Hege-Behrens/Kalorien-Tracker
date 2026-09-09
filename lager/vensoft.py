@@ -128,7 +128,26 @@ def uebersetzungstabelle(stamm):
         "ort_je_automat": {m["id"]: orte.get(m.get("parent_id"), m["serial_number"])
                            for m in stamm.get("vensoft_machine", [])},
         "status": {s["id"]: kennzeichen(s) for s in stamm.get("vensoft_sale_status", [])},
+        # Belegte Schaechte je Produkt. Ein Artikel ohne Schacht kann nichts
+        # verkaufen, egal wie viel davon im Lager liegt - und ein Schacht ohne
+        # Verkauf ist gebundener Platz.
+        "schaechte": _schaechte(stamm),
     }
+
+
+def _schaechte(stamm):
+    """Je Produkt: Zahl der Schaechte und der darin stehende Bestand."""
+    gezaehlt = {}
+    for schacht in stamm.get("vensoft_machine_product", []):
+        eintrag = gezaehlt.setdefault(schacht.get("product_id"),
+                                      {"anzahl": 0, "bestand": 0, "automaten": set()})
+        eintrag["anzahl"] += 1
+        eintrag["automaten"].add(schacht.get("parent_id"))
+        try:
+            eintrag["bestand"] += int(schacht.get("actual_amount") or 0)
+        except (TypeError, ValueError):
+            pass
+    return gezaehlt
 
 
 def ist_ausgegeben(verkauf, tabelle):
@@ -162,7 +181,7 @@ VERKAUFSFELDER = ("id", "tstamp", "parent_id", "product_id", "sale_status_id",
 
 # Die Stammdaten aendern sich selten; diese Tabellen werden ausgewertet.
 STAMMTABELLEN = ("vensoft_product", "vensoft_machine", "vensoft_site",
-                 "vensoft_sale_status")
+                 "vensoft_sale_status", "vensoft_machine_product")
 
 
 def _schlank(verkauf):
