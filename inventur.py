@@ -94,27 +94,11 @@ def cmd_vensoft(args):
     damit ist eine Doppelbuchung ausgeschlossen, auch wenn derselbe Zeitraum
     mehrfach abgerufen wird.
     """
-    import json as _json
-
     from lager import vensoft
 
     lager = daten.laden()
 
-    if args.aus_datei:
-        with open(args.aus_datei, encoding="utf-8") as f:
-            gespeichert = _json.load(f)
-        stamm = gespeichert["core"]
-        verkaeufe = gespeichert["sales"]
-        print(f"Aus Datei gelesen: {len(verkaeufe)} Verkaufsdatensaetze")
-    else:
-        try:
-            stamm = vensoft.stammdaten()
-            letzte = int(lager.einstellungen.get("vensoft_letzte_id", "0"))
-            verkaeufe, letzte = vensoft.alle_verkaeufe_ab(letzte)
-            lager.einstellungen["vensoft_letzte_id"] = str(letzte)
-        except vensoft.VensoftFehler as fehler:
-            sys.exit(f"Abruf fehlgeschlagen: {fehler}")
-        print(f"Abgerufen: {len(verkaeufe)} Verkaufsdatensaetze")
+    stamm, verkaeufe = _vensoft_daten(args.aus_datei)
 
     tabelle = vensoft.uebersetzungstabelle(stamm)
     stichtag, _ = zeitmodul.lesen(lager.einstellungen.get("verkauf_ab", ""))
@@ -532,8 +516,12 @@ def cmd_mailpaket(args):
     print(bericht.als_text(lager, nur_warnungen=True))
 
 
-def _vensoft_daten(aus_datei):
-    """Stammdaten und Verkaeufe, aus der Schnittstelle oder einer Datei."""
+def _vensoft_daten(aus_datei, still=False):
+    """Stammdaten und Verkaeufe - aus einer Datei oder dem Zwischenspeicher.
+
+    Der Zwischenspeicher wird dabei um die neuen Verkaeufe ergaenzt. Ein
+    vollstaendiger Abruf der Historie findet nur beim ersten Mal statt.
+    """
     import json as _json
 
     from lager import vensoft
@@ -542,10 +530,15 @@ def _vensoft_daten(aus_datei):
         with open(aus_datei, encoding="utf-8") as f:
             gespeichert = _json.load(f)
         return gespeichert["core"], gespeichert["sales"]
+
     try:
-        return vensoft.stammdaten(), vensoft.alle_verkaeufe_ab(0)[0]
+        stamm, verkaeufe, neue = vensoft.zwischenspeicher_aktualisieren()
     except vensoft.VensoftFehler as fehler:
         sys.exit(f"Abruf fehlgeschlagen: {fehler}")
+
+    if not still:
+        print(f"Vensoft: {neue} neue Verkaufsdatensaetze, {len(verkaeufe)} insgesamt")
+    return stamm, verkaeufe
 
 
 def cmd_tagesbericht(args):

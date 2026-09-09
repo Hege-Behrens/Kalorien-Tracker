@@ -141,3 +141,84 @@ def betrag(verkauf):
         return float(verkauf.get("price_gross") or 0)
     except (TypeError, ValueError):
         return 0.0
+
+
+# ---------- Zwischenspeicher ----------
+#
+# Die Berichte brauchen nicht nur die neuen Verkaeufe, sondern auch die
+# Vortage fuer den Vergleich. Ohne Zwischenspeicher muesste dafuer jedes Mal
+# die gesamte Historie abgerufen werden - sieben Pakete, mehrere Minuten, und
+# das mehrfach am Tag. Gespeichert wird deshalb lokal und nur ergaenzt.
+
+SPEICHER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "data", "vensoft")
+VERKAEUFE_DATEI = os.path.join(SPEICHER, "verkaeufe.jsonl")
+STAMM_DATEI = os.path.join(SPEICHER, "stammdaten.json")
+
+# Nur die Felder, die ausgewertet werden. Der Rest der Schnittstelle ist fuer
+# uns ohne Belang und wuerde die Datei um ein Vielfaches aufblaehen.
+VERKAUFSFELDER = ("id", "tstamp", "parent_id", "product_id", "sale_status_id",
+                  "price_gross", "pledge")
+
+# Die Stammdaten aendern sich selten; diese Tabellen werden ausgewertet.
+STAMMTABELLEN = ("vensoft_product", "vensoft_machine", "vensoft_site",
+                 "vensoft_sale_status")
+
+
+def _schlank(verkauf):
+    return {feld: verkauf.get(feld) for feld in VERKAUFSFELDER}
+
+
+def gespeicherte_verkaeufe():
+    if not os.path.exists(VERKAEUFE_DATEI):
+        return []
+    with open(VERKAEUFE_DATEI, encoding="utf-8") as f:
+        return [json.loads(zeile) for zeile in f if zeile.strip()]
+
+
+def _hoechste_id(verkaeufe):
+    ids = [int(v["id"]) for v in verkaeufe if str(v.get("id", "")).isdigit()]
+    return max(ids) if ids else 0
+
+
+def gespeicherte_stammdaten():
+    if not os.path.exists(STAMM_DATEI):
+        return None
+    with open(STAMM_DATEI, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def stammdaten_auffrischen():
+    """Holt die Stammdaten neu und legt sie schlank ab."""
+    voll = stammdaten()
+    schlank = {tabelle: voll.get(tabelle, []) for tabelle in STAMMTABELLEN}
+    os.makedirs(SPEICHER, exist_ok=True)
+    with open(STAMM_DATEI, "w", encoding="utf-8") as f:
+        json.dump(schlank, f, ensure_ascii=False, indent=1)
+    return schlank
+
+
+def zwischenspeicher_aktualisieren(stamm_auffrischen=False):
+    """Ergaenzt den Zwischenspeicher um die neuen Verkaeufe.
+
+    Liefert (Stammdaten, alle Verkaeufe, Zahl der neu hinzugekommenen).
+    """
+    stamm = None if stamm_auffrischen else gespeicherte_stammdaten()
+    if stamm is None:
+        stamm = stammdaten_auffrischen()
+
+    vorhanden = gespeicherte_verkaeufe()
+    bekannt = {str(v["id"]) for v in vorhanden}
+    neue, _ = alle_verkaeufe_ab(_hoechste_id(vorhanden))
+
+    # Auf Nummer sicher: die Gegenstelle koennte einen Datensatz erneut
+    # liefern, dann darf er nicht ein zweites Mal in der Datei landen.
+    frisch = [_schlank(v) for v in neue if str(v.get("id")) not in bekannt]
+
+    if frisch:
+        os.makedirs(SPEICHER, exist_ok=True)
+        with open(VERKAEUFE_DATEI, "a", encoding="utf-8") as f:
+            for verkauf in sorted(frisch, key=lambda v: int(v["id"])):
+                f.write(json.dumps(verkauf, ensure_ascii=False) + "\n")
+
+    return stamm, vorhanden + frisch, len(frisch)
