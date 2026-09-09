@@ -73,4 +73,8 @@ datum,typ,artikel_id,menge,beleg,bezeichnung,quelle,notiz
 2026-09-07,VERKAUF,redbull-fuji-apfel-ingwer,1,vensoft:3093157030483985710,Red Bull Fuji Aplef Ingwer,"Blomestraße 44, Heiligenstedten",aehnlichkeit
 2026-09-07,VERKAUF,sprite-033l,1,vensoft:3093107537604511407,"Sprite 0,33l","Blomestraße 44, Heiligenstedten",aehnlichkeit
 2026-09-08,VERKAUF,28-black-acai-025,1,vensoft:3093904208160622361,"28 Black Acai 0,25",Christian-IV- Straße 32 GL,aehnlichkeit
+2026-09-08,VERKAUF,bifi-caratza,1,vensoft:3093984486669420322,BiFi Caratza,"Blomestraße 44, Heiligenstedten",alias
+2026-09-08,VERKAUF,bifi-original-20gr,1,vensoft:3093985324238374858,BiFi Original 20gr,"Blomestraße 44, Heiligenstedten",alias
 2026-09-08,VERKAUF,monster-ultra-white-05,1,vensoft:3093892546351335138,"Monster Ultra White 0,5","Blomestraße 44, Heiligenstedten",alias
+2026-09-09,VERKAUF,monster-ultra-white-05,1,vensoft:3094199491037758791,"Monster Ultra White 0,5",Christian-IV- Straße 32 GL,alias
+2026-09-09,VERKAUF,red-bull-summer-025,1,vensoft:3094198649828148364,"Red Bull Summer 0,25",Christian-IV- Straße 32 GL,alias
