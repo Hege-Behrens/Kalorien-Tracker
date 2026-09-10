@@ -132,6 +132,13 @@ def uebersetzungstabelle(stamm):
         # verkaufen, egal wie viel davon im Lager liegt - und ein Schacht ohne
         # Verkauf ist gebundener Platz.
         "schaechte": _schaechte(stamm),
+        # Letzter Funkkontakt je Automat. Jeder Automat meldet sich stuendlich,
+        # auch wenn nichts verkauft wurde. Ein Tag ohne Verkauf ist deshalb
+        # erst dann ein Hinweis auf eine Stoerung, wenn auch der Kontakt
+        # ausbleibt - das eine ohne das andere zu pruefen erzeugt Fehlalarm.
+        "kontakt_je_automat": {v.get("machine_id"): v.get("last_contact")
+                               for v in stamm.get("vensoft_vencube", [])
+                               if v.get("machine_id")},
     }
 
 
@@ -148,6 +155,54 @@ def _schaechte(stamm):
         except (TypeError, ValueError):
             pass
     return gezaehlt
+
+
+# Die Automaten melden sich stuendlich. Erst wenn dreimal hintereinander
+# nichts kommt, ist von einer Stoerung auszugehen - eine verpasste Meldung
+# kann auch Funkloch oder Wartung sein.
+KONTAKT_FRIST_STUNDEN = 3
+
+
+def verbindungsstand(tabelle, jetzt=None):
+    """Je Automat: Standort, letzter Kontakt, Stunden seither, still ja/nein."""
+    from datetime import datetime, timezone
+    from zoneinfo import ZoneInfo
+
+    jetzt = jetzt or datetime.now(timezone.utc)
+    stand = []
+    for automat_id, zeitpunkt in tabelle.get("kontakt_je_automat", {}).items():
+        ort = tabelle.get("ort_je_automat", {}).get(automat_id) \
+            or tabelle.get("automat", {}).get(automat_id, "unbekannt")
+        gelesen = _zeitpunkt(zeitpunkt)
+        stunden = (jetzt - gelesen).total_seconds() / 3600 if gelesen else None
+        # Einmal zentral auf deutsche Zeit bringen: die Schnittstelle liefert
+        # zwar +02, aber der Bericht soll nicht davon abhaengen, welchen
+        # Versatz die Gegenstelle gerade schickt.
+        if gelesen:
+            gelesen = gelesen.astimezone(ZoneInfo("Europe/Berlin"))
+        stand.append({
+            "automat": ort,
+            "letzter_kontakt": gelesen,
+            "stunden_her": stunden,
+            "still": stunden is None or stunden > KONTAKT_FRIST_STUNDEN,
+        })
+    return sorted(stand, key=lambda e: e["automat"])
+
+
+def _zeitpunkt(text):
+    """Liest '2026-09-10 09:08:15.889599+02' - das Format der Schnittstelle."""
+    from datetime import datetime
+
+    if not text:
+        return None
+    roh = str(text).strip().replace(" ", "T")
+    # Der Zonenversatz kommt als '+02', fromisoformat will '+02:00'.
+    if len(roh) > 3 and roh[-3] in "+-":
+        roh += ":00"
+    try:
+        return datetime.fromisoformat(roh)
+    except ValueError:
+        return None
 
 
 def ist_ausgegeben(verkauf, tabelle):
@@ -181,7 +236,8 @@ VERKAUFSFELDER = ("id", "tstamp", "parent_id", "product_id", "sale_status_id",
 
 # Die Stammdaten aendern sich selten; diese Tabellen werden ausgewertet.
 STAMMTABELLEN = ("vensoft_product", "vensoft_machine", "vensoft_site",
-                 "vensoft_sale_status", "vensoft_machine_product")
+                 "vensoft_sale_status", "vensoft_machine_product",
+                 "vensoft_vencube")
 
 
 def _schlank(verkauf):
@@ -217,12 +273,18 @@ def stammdaten_auffrischen():
     return schlank
 
 
-def zwischenspeicher_aktualisieren(stamm_auffrischen=False):
+def zwischenspeicher_aktualisieren(stamm_auffrischen=True):
     """Ergaenzt den Zwischenspeicher um die neuen Verkaeufe.
+
+    Die Stammdaten werden dabei standardmaessig mitgeholt. Sie sind klein und
+    schnell abgerufen - der langsame Teil war immer das Blaettern durch die
+    Verkaufshistorie. Vor allem aber steckt in ihnen der letzte Funkkontakt
+    der Automaten, und der aendert sich stuendlich: ein zwischengespeicherter
+    Kontaktzeitpunkt waere fuer die Verbindungspruefung wertlos.
 
     Liefert (Stammdaten, alle Verkaeufe, Zahl der neu hinzugekommenen).
     """
-    stamm = None if stamm_auffrischen else gespeicherte_stammdaten()
+    stamm = stammdaten_auffrischen() if stamm_auffrischen else gespeicherte_stammdaten()
     if stamm is None:
         stamm = stammdaten_auffrischen()
 

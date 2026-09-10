@@ -456,6 +456,46 @@ def umsatz_wochentag(tag):
     return WOCHENTAGE[tag.weekday()]
 
 
+def _verbindungsblock(stand, verkaeufe):
+    """Verbindungshinweis fuer die Mail - rot bei Stille, grau zur Bestaetigung.
+
+    Der Hinweis erscheint nur, wenn er etwas beitraegt: wenn ein Automat sich
+    nicht meldet, oder wenn ein Tag ohne Verkauf sonst wie ein Ausfall
+    aussaehe.
+    """
+    if not stand:
+        return ""
+
+    stille = [e for e in stand if e["still"]]
+    if stille:
+        zeilen = "".join(
+            f'<div style="padding-top:4px;">{e["automat"]} &ndash; letzter Kontakt '
+            + (e["letzter_kontakt"].strftime("%d.%m.%Y, %H:%M&nbsp;Uhr")
+               if e["letzter_kontakt"] else "nie")
+            + "</div>"
+            for e in stille
+        )
+        return (
+            f'<tr><td style="padding:16px 28px 0;">'
+            f'<div style="padding:12px 15px;background:#FEF3F2;border-left:4px solid #DC2626;'
+            f'border-radius:4px;font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#5B2120;">'
+            f'<strong style="color:#B42318;">Automat meldet sich nicht</strong>{zeilen}'
+            f'<div style="padding-top:6px;">Erwartet wird ein Kontakt pro Stunde. '
+            f'Bitte pr&uuml;fen.</div></div></td></tr>'
+        )
+
+    if verkaeufe == 0:
+        return (
+            f'<tr><td style="padding:16px 28px 0;">'
+            f'<div style="padding:11px 14px;background:#F4F4F5;border-radius:6px;'
+            f'font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#6B7280;">'
+            f'Kein Verkauf an diesem Tag. Beide Automaten sind verbunden '
+            f'(Kontakt im Stundentakt) &ndash; es wurde also nichts gekauft.</div>'
+            f'</td></tr>'
+        )
+    return ""
+
+
 def tagesbericht_html(lager, zahlen, logo_cid="logo.png"):
     """Taeglicher Umsatzbericht als E-Mail im Erscheinungsbild der Marke."""
     from . import marke
@@ -519,6 +559,8 @@ def tagesbericht_html(lager, zahlen, logo_cid="logo.png"):
             f'font:400 12px/1.5 Helvetica,Arial,sans-serif;color:#92400E;">'
             f'<strong>Fehlversuche ohne Warenausgabe:</strong> {art}</div></td></tr>'
         )
+
+    stoerungstext += _verbindungsblock(d.get("verbindung", []), d["verkaeufe"])
 
     logo_block = (
         f'<img src="cid:{logo_cid}" width="130" alt="ProVend" '

@@ -179,6 +179,10 @@ def tageszahlen(verkaeufe, tabelle, stichtag, rueckblick=7, artikelname=None):
         "je_produkt": sorted(((n, z[0], z[1]) for n, z in je_produkt.items()),
                              key=lambda x: (-x[1], -x[2])),
         "stoerungen": dict(stoerungen),
+        # Ein Tag ohne Verkauf sagt fuer sich genommen nichts. Erst zusammen
+        # mit dem Funkkontakt laesst sich sagen, ob wenig gekauft wurde oder
+        # ob der Automat gar nicht gemeldet hat.
+        "verbindung": vensoft.verbindungsstand(tabelle),
     }
 
 
@@ -224,7 +228,36 @@ def als_text(zahlen):
         art = ", ".join(f"{n}x {k}" for k, n in sorted(d["stoerungen"].items()))
         zeilen += ["", f"Fehlversuche ohne Warenausgabe: {art}"]
 
+    zeilen += verbindungszeilen(d.get("verbindung", []), d["verkaeufe"])
     return "\n".join(zeilen)
+
+
+def verbindungszeilen(stand, verkaeufe):
+    """Meldet die Verbindung - laut, wenn sie fehlt, leise, wenn sie steht.
+
+    Ein Automat meldet sich stuendlich, auch ohne Verkauf. Deshalb wird nur
+    dann gewarnt, wenn der Kontakt tatsaechlich ausbleibt. An einem Tag ganz
+    ohne Verkauf wird der Kontakt zusaetzlich bestaetigt - sonst bleibt offen,
+    ob der Automat stand oder nur niemand gekauft hat.
+    """
+    if not stand:
+        return []
+
+    stille = [e for e in stand if e["still"]]
+    if stille:
+        zeilen = ["", "ACHTUNG - Automat meldet sich nicht"]
+        for e in stille:
+            wann = (e["letzter_kontakt"].strftime("%d.%m.%Y, %H:%M Uhr")
+                    if e["letzter_kontakt"] else "nie")
+            seit = f" (vor {zahl(e['stunden_her'], 0)} Stunden)" if e["stunden_her"] else ""
+            zeilen.append(f"  {e['automat'][:34]:<36}letzter Kontakt {wann}{seit}")
+        zeilen.append("  Erwartet wird ein Kontakt pro Stunde. Bitte pruefen.")
+        return zeilen
+
+    if verkaeufe == 0:
+        return ["", "Kein Verkauf an diesem Tag. Beide Automaten sind verbunden "
+                    "(Kontakt im Stundentakt) - es wurde also nichts gekauft."]
+    return []
 
 
 def als_text_monat(zahlen):
