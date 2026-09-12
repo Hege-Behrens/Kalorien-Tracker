@@ -10,6 +10,7 @@ sieht das Fenster nur aufblitzen - die Ausgabe ist dann schon weg.
   Warnungen.cmd        nur Artikel unter Mindestbestand
   Sortiment.cmd        Renner und Ladenhueter der letzten 90 Tage
   Zugang pruefen.cmd   zeigt, ob die Zugangsdaten gefunden werden
+  Mailzugang testen.cmd  meldet sich beim Mailserver an, sendet nichts
 
 Diese fuenf lesen nur. Sie buchen nichts und verschicken nichts.
 

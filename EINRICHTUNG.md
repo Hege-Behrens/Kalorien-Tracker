@@ -130,6 +130,9 @@ Prüfen, ob es stimmt — ohne eine Mail zu verschicken:
 python inventur.py zugang --mailtest
 ```
 
+Oder per Doppelklick auf `windows\Mailzugang testen.cmd` — die Datei wechselt
+selbst in den richtigen Ordner.
+
 Der Befehl meldet sich bei Gmail an und trennt sofort wieder. `535` oder
 `Username and Password not accepted` heißt: falsches Passwort, meist ein
 mitkopiertes Leerzeichen.
