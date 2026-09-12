@@ -830,7 +830,11 @@ def cmd_zugang(args):
             stand = f"gesetzt ({len(wert)} Zeichen)"
         else:
             stand = wert
-        print(f"  {schluessel:<16}{stand:<28}{zweck}")
+        # Lange Werte wie die Absenderadresse liefen sonst in die Spalte
+        # daneben, und die Ausgabe klebte zusammen.
+        if len(stand) > 30:
+            stand = stand[:29] + "\u2026"
+        print(f"  {schluessel:<16}{stand:<32}{zweck}")
 
     fehlt = [k for k in ("VENSOFT_USER", "VENSOFT_PASS") if not os.environ.get(k)]
     if fehlt:
