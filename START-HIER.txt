@@ -1,0 +1,36 @@
+ProVend Inventur - Start
+========================
+
+1. Diesen Ordner "10_Inventur" ablegen unter:
+
+     C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\
+
+   Er liegt dann neben 60_Prospekte.
+
+2. Rechtsklick auf den Ordner -> "Immer auf diesem Geraet behalten".
+   Ohne das lagert OneDrive Dateien aus und naechtliche Aufgaben scheitern.
+
+3. provend.env.vorlage nach C:\Users\Frédéric\.provend.env kopieren
+   und dort ausfuellen.
+
+   NICHT in diesem Ordner lassen - er wird synchronisiert, die
+   Passwoerter landen sonst in der Cloud.
+
+   Wird daraus versehentlich .provend.env.txt, funktioniert sie
+   trotzdem. Pruefen mit:   py inventur.py zugang
+
+4. EINRICHTUNG.md lesen - alle weiteren Schritte fuer Windows.
+
+5. Fuer die Arbeit mit Claude: PowerShell oeffnen und
+
+     cd "C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\10_Inventur"
+     claude
+
+   Claude liest dann CLAUDE.md und kennt die Besonderheiten des Projekts.
+
+Dateien:
+  EINRICHTUNG.md          Einrichtung unter Windows, Schritt fuer Schritt
+  CLAUDE.md               Uebergabe an Claude: was man aus den Daten nicht sieht
+  README.md               Wie das Programm funktioniert
+  ROUTINE.md              Die automatischen Ablaeufe
+  provend.env.vorlage     Zugangsdaten - ins Benutzerprofil kopieren
