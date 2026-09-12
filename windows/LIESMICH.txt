@@ -11,7 +11,15 @@ sieht das Fenster nur aufblitzen - die Ausgabe ist dann schon weg.
   Sortiment.cmd        Renner und Ladenhueter der letzten 90 Tage
   Zugang pruefen.cmd   zeigt, ob die Zugangsdaten gefunden werden
 
-Alle fuenf lesen nur. Sie buchen nichts und verschicken nichts.
+Diese fuenf lesen nur. Sie buchen nichts und verschicken nichts.
+
+  Taeglich versenden.cmd   bucht die Verkaeufe ab UND verschickt den
+                           Tagesbericht per Mail
+
+Die letzte ist die Ausnahme: Sie veraendert das Bewegungsjournal. Benutze sie
+erst, wenn die Cloud-Routinen abgeschaltet sind - sonst buchen zwei Stellen
+dieselben Verkaeufe in zwei getrennte Journale, und keiner der beiden
+Bestaende stimmt danach noch.
 
 Tipp: Rechtsklick auf eine Datei -> "An 'Start' anheften" oder eine
 Verknuepfung auf den Desktop legen.

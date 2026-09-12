@@ -649,6 +649,26 @@ def cmd_tagesbericht(args):
         print(f"\nVersandpaket: {os.path.relpath(ziel, daten.BASIS)} "
               f"({os.path.getsize(ziel)/1024:.0f} KB) an {', '.join(empfaenger)}")
 
+    if args.mail:
+        _per_smtp(lager, f"ProVend Tagesbericht - {tag.strftime('%d.%m.%Y')}",
+                  text, bericht.tagesbericht_html(lager, zahlen))
+
+
+def _per_smtp(lager, betreff, text, html, anhang=None):
+    """Verschickt einen Bericht ueber den hinterlegten Mailzugang.
+
+    Der Weg ueber ein Versandpaket braucht Claude als Boten. Fuer die
+    Aufgabenplanung auf dem eigenen Rechner muss das Programm selbst senden
+    koennen - sonst laeuft dort nachts niemand, der die Mail abschickt.
+    """
+    logo, _ = marke_logo()
+    try:
+        empfaenger = versand.senden(betreff, text, anhang_pfad=anhang, lager=lager,
+                                    html=html, logo_pfad=logo, logo_cid="logo.png")
+    except Exception as fehler:
+        sys.exit(f"Versand fehlgeschlagen: {fehler}")
+    print(f"\nE-Mail versendet an: {', '.join(empfaenger)}")
+
 
 def marke_logo():
     from lager import marke
@@ -685,6 +705,11 @@ def cmd_monatsbericht(args):
     zahlen = umsatz.monatszahlen(verkaeufe, tabelle, jahr, monat, artikelname=artikelname)
     text = umsatz.als_text_monat(zahlen)
     print(text)
+
+    if args.mail:
+        _per_smtp(lager,
+                  f"ProVend Monatsauswertung - {zahlen['monat_name']} {jahr}",
+                  text, bericht.monatsbericht_html(lager, zahlen))
 
     if not args.mailpaket:
         return
@@ -943,6 +968,8 @@ def main():
     tb.add_argument("--aus-datei", dest="aus_datei", help="Vensoft-Daten aus einer JSON-Datei")
     tb.add_argument("--mailpaket", nargs="?", const=True, default=False,
                     help="Versandfertiges JSON schreiben (optional mit Pfad)")
+    tb.add_argument("--mail", action="store_true",
+                    help="Bericht selbst per SMTP versenden (fuer die Aufgabenplanung)")
     tb.set_defaults(func=cmd_tagesbericht)
 
     mb = unter.add_parser("monatsbericht", help="Monatsauswertung des Vormonats")
@@ -950,6 +977,8 @@ def main():
     mb.add_argument("--aus-datei", dest="aus_datei", help="Vensoft-Daten aus einer JSON-Datei")
     mb.add_argument("--mailpaket", nargs="?", const=True, default=False,
                     help="Versandfertiges JSON schreiben (optional mit Pfad)")
+    mb.add_argument("--mail", action="store_true",
+                    help="Bericht selbst per SMTP versenden (fuer die Aufgabenplanung)")
     mb.set_defaults(func=cmd_monatsbericht)
 
     so = unter.add_parser("sortiment",

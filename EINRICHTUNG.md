@@ -169,10 +169,10 @@ Passwörter werden dabei nur als Zeichenzahl ausgegeben, nie im Klartext.
 ein Fenster, führt das Programm aus und schließt sofort wieder — die Ausgabe
 ist weg, bevor man sie lesen kann, auch eine Fehlermeldung.
 
-Für den Alltag liegen im Ordner `windows` fünf Verknüpfungen zum Doppelklicken
+Für den Alltag liegen im Ordner `windows` Verknüpfungen zum Doppelklicken
 (`Tagesbericht.cmd`, `Bestandsliste.cmd`, …). Sie lassen das Fenster offen,
-bis du eine Taste drückst, und wechseln selbst in den richtigen Ordner. Alle
-fünf lesen nur, sie buchen nichts.
+bis du eine Taste drückst, und wechseln selbst in den richtigen Ordner. Bis auf
+`Taeglich versenden.cmd` lesen sie nur — die eine bucht und verschickt.
 
 Zum Einrichten trotzdem die PowerShell benutzen — dort siehst du Fehler im
 Zusammenhang:
@@ -204,34 +204,54 @@ Zwei Wege. Der erste braucht Claude nicht und ist deshalb der zuverlässigere.
 
 ### Weg A: Windows-Aufgabenplanung (empfohlen)
 
-Der Versand läuft dann per SMTP über die Adresse aus `MAIL_ABSENDER`, ganz ohne
-Claude. Aufgabenplanung öffnen (`taskschd.msc`) → „Einfache Aufgabe erstellen":
+Der Versand läuft per SMTP über die Adresse aus `MAIL_ABSENDER`, ganz ohne
+Claude. Aufgabenplanung öffnen (`taskschd.msc`) → „Einfache Aufgabe erstellen".
 
-| | Tagesbericht | Bestandsliste |
-|---|---|---|
-| Name | ProVend Tagesbericht | ProVend Bestandsliste |
-| Trigger | Täglich, 07:00 | Wöchentlich, Montag, 12:00 |
-| Aktion | Programm starten | Programm starten |
-| Programm | `python` | `python` |
-| Argumente | `inventur.py tagesbericht --mail` | `inventur.py bericht --mail` |
-| Starten in | der Projektordner (siehe unten) | der Projektordner (siehe unten) |
+**Aufgabe 1 — Tagesbericht, täglich 07:00**
 
-Bei „Starten in" den vollen Pfad eintragen, **ohne** Anführungszeichen:
+| Feld | Wert |
+|---|---|
+| Programm | `cmd.exe` |
+| Argumente | `/c "Taeglich versenden.cmd"` |
+| Starten in | `…\10_Inventur\windows` |
 
-```
-C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\10_Inventur
-```
+**Aufgabe 2 — Bestandsliste, montags 12:00**
 
-Das Feld ist nicht optional — ohne die Angabe findet das Programm seine Daten
-nicht. Anführungszeichen gehören hier nicht hinein, anders als in die
-PowerShell; die Aufgabenplanung nimmt den Text wörtlich.
+| Feld | Wert |
+|---|---|
+| Programm | `python` |
+| Argumente | `inventur.py bericht --mail` |
+| Starten in | `…\10_Inventur` |
 
-In den Eigenschaften der Aufgabe zusätzlich **„Aufgabe so schnell wie möglich
+**Aufgabe 3 — Monatsauswertung, am 1. um 07:30**
+
+| Feld | Wert |
+|---|---|
+| Programm | `python` |
+| Argumente | `inventur.py monatsbericht --mail` |
+| Starten in | `…\10_Inventur` |
+
+Bei „Starten in" den **vollen** Pfad eintragen, ohne Anführungszeichen — etwa
+`C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\10_Inventur`.
+Das Feld ist nicht optional: Ohne die Angabe findet das Programm seine Daten
+nicht. Anführungszeichen gehören dort nicht hinein, anders als in der
+PowerShell — die Aufgabenplanung nimmt den Text wörtlich.
+
+**Warum der Tagesbericht über eine .cmd-Datei läuft:** Er macht zwei Schritte
+— erst die Verkäufe abbuchen, dann die Mail verschicken. Bricht der erste ab,
+unterbleibt der zweite. Sonst ginge ein Bericht auf unvollständigen Zahlen
+hinaus, und niemand würde es merken.
+
+Die Monatsauswertung läuft bewusst eine halbe Stunde nach dem Tagesbericht: So
+sind die Verkäufe des Vortags gebucht, bevor der Monat abgerechnet wird.
+
+In den Eigenschaften jeder Aufgabe zusätzlich **„Aufgabe so schnell wie möglich
 nach einem verpassten Start ausführen"** ankreuzen. Sonst fällt der Bericht
-aus, wenn der Rechner um 7 Uhr aus war.
+aus, wenn der Rechner zur fraglichen Zeit aus war.
 
 Die Zeitumstellung Ende Oktober macht die Aufgabenplanung selbst mit — anders
-als die bisherigen Cloud-Routinen, die in UTC rechnen.
+als die bisherigen Cloud-Routinen, die in UTC rechnen und dadurch eine Stunde
+früher feuern.
 
 ### Weg B: Claude-Routine auf diesem Rechner
 
