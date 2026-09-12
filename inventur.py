@@ -22,29 +22,46 @@ from lager.zuordnung import alias_lernen, zuordnen
 BERICHTE = os.path.join(daten.BASIS, "berichte")
 
 
-def _umgebung_laden():
-    """Liest .env neben dem Programm, falls vorhanden.
+def _env_dateien():
+    """Mögliche Orte der Zugangsdaten, wichtigster zuerst.
 
-    Unter Linux setzt man Zugangsdaten mit `export` vor dem Aufruf; unter
-    Windows ist das umstaendlich und in der Aufgabenplanung gar nicht
-    vorgesehen. Eine .env-Datei funktioniert auf beiden Systemen gleich.
-    Bereits gesetzte Umgebungsvariablen haben Vorrang - wer sie im System
-    hinterlegt hat, soll nicht von der Datei ueberstimmt werden.
+    Liegt das Projekt in einem synchronisierten OneDrive-Ordner, würde eine
+    .env darin samt Passwörtern in die Cloud wandern. Deshalb wird zuerst
+    ausserhalb gesucht: PROVEND_ENV zeigt auf eine beliebige Datei, sonst gilt
+    .provend.env im Benutzerprofil. Die .env im Projekt bleibt als bequemer
+    Weg bestehen, wenn das Projekt nicht synchronisiert wird.
     """
-    pfad = os.path.join(daten.BASIS, ".env")
-    if not os.path.exists(pfad):
-        return
-    with open(pfad, encoding="utf-8-sig") as f:
-        for zeile in f:
-            zeile = zeile.strip()
-            if not zeile or zeile.startswith("#") or "=" not in zeile:
-                continue
-            schluessel, _, wert = zeile.partition("=")
-            schluessel = schluessel.strip()
-            if schluessel.startswith("export "):
-                schluessel = schluessel[7:].strip()
-            wert = wert.strip().strip('"').strip("'")
-            os.environ.setdefault(schluessel, wert)
+    orte = []
+    if os.environ.get("PROVEND_ENV"):
+        orte.append(os.environ["PROVEND_ENV"])
+    heim = os.path.expanduser("~")
+    if heim and heim != "~":
+        orte.append(os.path.join(heim, ".provend.env"))
+    orte.append(os.path.join(daten.BASIS, ".env"))
+    return orte
+
+
+def _umgebung_laden():
+    """Liest die Zugangsdaten aus der ersten gefundenen Datei.
+
+    Unter Linux setzt man sie mit `export`, unter Windows ist das umstaendlich
+    und in der Aufgabenplanung gar nicht vorgesehen. Eine Datei funktioniert
+    auf beiden Systemen gleich. Bereits gesetzte Umgebungsvariablen haben
+    Vorrang, und eine frueher gelesene Datei schlaegt eine spaetere.
+    """
+    for pfad in _env_dateien():
+        if not os.path.exists(pfad):
+            continue
+        with open(pfad, encoding="utf-8-sig") as f:
+            for zeile in f:
+                zeile = zeile.strip()
+                if not zeile or zeile.startswith("#") or "=" not in zeile:
+                    continue
+                schluessel, _, wert = zeile.partition("=")
+                schluessel = schluessel.strip()
+                if schluessel.startswith("export "):
+                    schluessel = schluessel[7:].strip()
+                os.environ.setdefault(schluessel, wert.strip().strip('"').strip("'"))
 
 
 _umgebung_laden()

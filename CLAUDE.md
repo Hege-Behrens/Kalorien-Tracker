@@ -83,9 +83,26 @@ die Mail. Die Mail liest das ganze Team.
 ## Zugangsdaten
 
 `VENSOFT_USER`, `VENSOFT_PASS`, `MAIL_ABSENDER`, `MAIL_PASSWORT` kommen aus
-`.env` oder der Umgebung — **nie ins Repository**, nie in den Chat. `.env`
-steht in `.gitignore`. Beim Mailversand ist `MAIL_PASSWORT` ein App-Passwort,
-nicht das Kontopasswort.
+einer Datei oder der Umgebung — **nie ins Repository**, nie in den Chat.
+Gesucht wird in dieser Reihenfolge: `PROVEND_ENV`, dann `~/.provend.env`,
+zuletzt `.env` im Projektordner.
+
+Das Projekt liegt in einem synchronisierten OneDrive-Ordner. **Die
+Zugangsdaten gehören deshalb nach `~/.provend.env`, nicht ins Projekt** — eine
+`.env` darin würde samt Passwörtern in die Cloud wandern. Beim Mailversand ist
+`MAIL_PASSWORT` ein App-Passwort, nicht das Kontopasswort.
+
+## OneDrive als Arbeitsverzeichnis
+
+Zwei Eigenheiten, die von aussen wie Programmfehler aussehen:
+
+- **Ausgelagerte Dateien.** OneDrive ersetzt selten benutzte Dateien durch
+  Platzhalter. Ein `FileNotFoundError` bei einer Datei, die im Explorer
+  sichtbar ist, kommt daher. Abhilfe: „Immer auf diesem Gerät behalten".
+- **Konfliktkopien.** Läuft das Programm auf zwei Geräten, entstehen Dateien
+  wie `bewegungen-Kopie mit Konflikt.csv` und Buchungen gehen verloren. Ein
+  Rechner führt das Journal. Taucht so eine Datei auf: nicht einfach löschen,
+  sondern die fehlenden Zeilen ins Journal zurückholen.
 
 ## Prüfen vor dem Commit
 

@@ -28,15 +28,30 @@ Erwartet wird `Python 3.11` oder höher.
 
 ## 2. Programm ablegen
 
-Entpacke das Paket nach:
+Entpacke das Paket in den ProVend-Ordner, sodass es so aussieht:
 
 ```
-C:\ProVend\Kalorien-Tracker
+C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\
+    10_Inventur\          <- hierher das Paket
+    60_Prospekte\         <- liegt schon da
 ```
 
-Der Pfad darf ein anderer sein, dann aber unten überall mit anpassen. Keine
-Leerzeichen und keine Umlaute im Pfad — das erspart Anführungszeichen-Ärger in
-der Aufgabenplanung.
+Damit liegt alles ProVend beieinander und wird von OneDrive mitgesichert.
+Der Ordnername `10_Inventur` ist frei wählbar; er passt nur zu eurer
+Nummerierung.
+
+### Zwei Einstellungen, die OneDrive braucht
+
+**„Immer auf diesem Gerät behalten".** Rechtsklick auf `10_Inventur` →
+diese Option setzen. Ohne sie macht OneDrive aus selten benutzten Dateien
+Platzhalter, die erst beim Öffnen geladen werden — eine nachts laufende
+Aufgabe scheitert dann, weil die Datei nicht wirklich da ist.
+
+**Nicht gleichzeitig auf zwei Rechnern arbeiten.** OneDrive synchronisiert
+auch, während das Programm schreibt. Läuft die Inventur auf zwei Geräten,
+entstehen Dateien wie `bewegungen-Kopie mit Konflikt.csv`, und Buchungen gehen
+verloren. Ein Rechner führt das Journal — das ist keine technische Grenze,
+sondern eine Absprache, die eingehalten werden muss.
 
 ## 3. Abhängigkeiten
 
@@ -47,8 +62,15 @@ py -m pip install openpyxl Pillow
 
 ## 4. Zugangsdaten hinterlegen
 
-Lege die Datei `C:\ProVend\Kalorien-Tracker\.env` an — mit dem Editor, nicht mit
-Word. Inhalt:
+**Nicht in den OneDrive-Ordner.** Passwörter, die dort liegen, werden in die
+Cloud synchronisiert. Lege die Datei stattdessen in dein Benutzerprofil:
+
+```
+C:\Users\Frédéric\.provend.env
+```
+
+Das Programm sucht dort zuerst und findet sie unabhängig davon, wo das Projekt
+liegt. Inhalt — mit dem Editor schreiben, nicht mit Word:
 
 ```
 VENSOFT_USER=hegebehrens
@@ -57,8 +79,13 @@ MAIL_ABSENDER=hegebehrens.rechnung@gmail.com
 MAIL_PASSWORT=hier-das-gmail-app-passwort
 ```
 
-Das Programm liest die Datei beim Start selbst ein. Sie steht in `.gitignore`
-und wird nie ins Repository übertragen.
+Das Programm liest die Datei beim Start selbst ein. Gesucht wird in dieser
+Reihenfolge: die Umgebungsvariable `PROVEND_ENV`, dann
+`%USERPROFILE%\.provend.env`, zuletzt eine `.env` im Projektordner. Was schon
+in der Windows-Umgebung gesetzt ist, hat immer Vorrang.
+
+Eine `.env` im Projekt funktioniert also weiterhin — nur eben nicht, solange
+das Projekt in OneDrive liegt.
 
 **Das Gmail-Passwort ist nicht dein normales Passwort**, sondern ein
 App-Passwort: Google-Konto → Sicherheit → Bestätigung in zwei Schritten →
@@ -70,17 +97,20 @@ wählen, sonst heißt die Datei `.env.txt` und wird nicht gefunden.
 ## 5. Probelauf
 
 ```powershell
-cd C:\ProVend\Kalorien-Tracker
+cd "C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\10_Inventur"
 py inventur.py bestand
 py inventur.py tagesbericht
 ```
+
+Die Anführungszeichen sind nötig — der Pfad enthält einen Bindestrich und
+einen Akzent.
 
 Der zweite Befehl ruft Vensoft ab. Kommen Zahlen, stimmen die Zugangsdaten.
 
 ## 6. OneDrive-Ordner eintragen
 
 ```powershell
-py inventur.py prospekte "C:\Users\DEIN-NAME\OneDrive\60_Prospekte"
+py inventur.py prospekte "C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\60_Prospekte"
 ```
 
 Ohne Argument zeigt der Befehl den hinterlegten Pfad an. Den genauen Pfad
@@ -103,10 +133,17 @@ Claude. Aufgabenplanung öffnen (`taskschd.msc`) → „Einfache Aufgabe erstell
 | Aktion | Programm starten | Programm starten |
 | Programm | `py` | `py` |
 | Argumente | `inventur.py tagesbericht --mail` | `inventur.py bericht --mail` |
-| Starten in | `C:\ProVend\Kalorien-Tracker` | `C:\ProVend\Kalorien-Tracker` |
+| Starten in | der Projektordner (siehe unten) | der Projektordner (siehe unten) |
 
-„Starten in" ist nicht optional — ohne diese Angabe findet das Programm weder
-`.env` noch die Daten.
+Bei „Starten in" den vollen Pfad eintragen, **ohne** Anführungszeichen:
+
+```
+C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\10_Inventur
+```
+
+Das Feld ist nicht optional — ohne die Angabe findet das Programm seine Daten
+nicht. Anführungszeichen gehören hier nicht hinein, anders als in die
+PowerShell; die Aufgabenplanung nimmt den Text wörtlich.
 
 In den Eigenschaften der Aufgabe zusätzlich **„Aufgabe so schnell wie möglich
 nach einem verpassten Start ausführen"** ankreuzen. Sonst fällt der Bericht
@@ -139,6 +176,8 @@ doppelt als tagelang gar keine.
 |---|---|
 | `py wird nicht erkannt` | Python ohne „Add to PATH" installiert |
 | `ModuleNotFoundError: openpyxl` | Schritt 3 übersprungen |
-| `VENSOFT_USER und VENSOFT_PASS muessen gesetzt sein` | `.env` fehlt, heißt `.env.txt`, oder liegt im falschen Ordner |
+| `VENSOFT_USER und VENSOFT_PASS muessen gesetzt sein` | `.provend.env` fehlt, heißt `.provend.env.txt`, oder liegt nicht im Benutzerprofil |
 | `Authentication failed` beim Versand | normales Passwort statt App-Passwort in `MAIL_PASSWORT` |
 | Aufgabenplanung läuft, aber nichts passiert | „Starten in" nicht gesetzt |
+| `FileNotFoundError` bei einer Datei, die es gibt | OneDrive hat sie ausgelagert — „Immer auf diesem Gerät behalten" setzen |
+| Dateien heißen plötzlich „Kopie mit Konflikt" | Auf zwei Rechnern gleichzeitig gearbeitet |
