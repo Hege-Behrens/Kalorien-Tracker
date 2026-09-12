@@ -841,6 +841,21 @@ def cmd_zugang(args):
         print("\nOhne VENSOFT_USER und VENSOFT_PASS koennen keine Verkaufsdaten "
               "abgerufen werden.")
 
+    if not args.mailtest:
+        return
+    print("\nMelde mich beim Mailserver an (es wird nichts verschickt) ...")
+    try:
+        absender, host = versand.anmeldung_pruefen()
+    except Exception as fehler:
+        text = str(fehler)
+        print(f"Anmeldung fehlgeschlagen: {text}")
+        if "535" in text or "Username and Password not accepted" in text:
+            print("Das ist die uebliche Meldung bei einem falschen App-Passwort.")
+            print("Bei Gmail: 16 Zeichen, keine Leerzeichen, aus")
+            print("https://myaccount.google.com/apppasswords")
+        sys.exit(1)
+    print(f"Anmeldung erfolgreich: {absender} bei {host}")
+
 
 def main():
     p = argparse.ArgumentParser(description="Lagerverwaltung Verkaufsautomaten")
@@ -951,9 +966,11 @@ def main():
                     help="Pfad zum Prospektordner; ohne Angabe wird der hinterlegte gezeigt")
     pr.set_defaults(func=cmd_prospekte)
 
-    unter.add_parser("zugang",
-                     help="Pruefen, ob die Zugangsdaten gefunden werden"
-                     ).set_defaults(func=cmd_zugang)
+    zg = unter.add_parser("zugang",
+                          help="Pruefen, ob die Zugangsdaten gefunden werden")
+    zg.add_argument("--mailtest", action="store_true",
+                    help="zusaetzlich beim Mailserver anmelden, ohne etwas zu senden")
+    zg.set_defaults(func=cmd_zugang)
 
     b = unter.add_parser("bericht", help="Excel-Bestandsliste erzeugen, optional per Mail")
     b.add_argument("--mail", action="store_true", help="Bericht an die hinterlegten Empfaenger senden")

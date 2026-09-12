@@ -100,9 +100,34 @@ in der Windows-Umgebung gesetzt ist, hat immer Vorrang.
 Eine `.env` im Projekt funktioniert also weiterhin — nur eben nicht, solange
 das Projekt in OneDrive liegt.
 
-**Das Gmail-Passwort ist nicht dein normales Passwort**, sondern ein
-App-Passwort: Google-Konto → Sicherheit → Bestätigung in zwei Schritten →
-App-Passwörter. Google zeigt es genau einmal an.
+### Das Gmail-App-Passwort
+
+Nicht das normale Kontopasswort. Ein App-Passwort holst du so:
+
+1. Bei [myaccount.google.com](https://myaccount.google.com) mit
+   **hegebehrens.rechnung@gmail.com** anmelden — dem Absenderkonto, nicht der
+   iCloud-Adresse.
+2. **Sicherheit → Bestätigung in zwei Schritten** muss eingeschaltet sein.
+   Ohne sie bietet Google keine App-Passwörter an; die Seite meldet dann nur,
+   die Einstellung sei nicht verfügbar.
+3. Direkt zu [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords),
+   einen Namen vergeben (etwa `ProVend Inventur`) und erstellen.
+4. Google zeigt **16 Zeichen in vier Blöcken**, etwa `abcd efgh ijkl mnop`.
+   Die Leerzeichen gehören **nicht** dazu — in die Datei kommen die 16 Zeichen
+   am Stück.
+
+Google zeigt das Passwort genau einmal. Ist es weg, einfach ein neues erzeugen
+und das alte löschen.
+
+Prüfen, ob es stimmt — ohne eine Mail zu verschicken:
+
+```powershell
+python inventur.py zugang --mailtest
+```
+
+Der Befehl meldet sich bei Gmail an und trennt sofort wieder. `535` oder
+`Username and Password not accepted` heißt: falsches Passwort, meist ein
+mitkopiertes Leerzeichen.
 
 ### Wenn daraus `.provend.env.txt` wird
 

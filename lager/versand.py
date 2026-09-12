@@ -56,6 +56,27 @@ def empfaenger_liste(lager=None):
     return zerlegen(os.environ.get("BESTANDSLISTE_EMPFAENGER", ""))
 
 
+def anmeldung_pruefen():
+    """Meldet sich beim SMTP-Server an und trennt sofort wieder.
+
+    Ohne diese Probe faellt ein falsches App-Passwort erst beim naechsten
+    geplanten Versand auf - also womoeglich erst Tage spaeter, wenn niemand
+    hinschaut. Es wird keine Mail verschickt.
+    """
+    absender, passwort = zugangsdaten()
+    if not (absender and passwort):
+        raise RuntimeError(
+            "MAIL_ABSENDER und MAIL_PASSWORT muessen gesetzt sein. Bei Gmail ist "
+            "das Passwort ein App-Passwort aus myaccount.google.com/apppasswords, "
+            "nicht das normale Kontopasswort."
+        )
+    host, port = smtp_zugang(absender)
+    with smtplib.SMTP(host, port, timeout=30) as smtp:
+        smtp.starttls(context=ssl.create_default_context())
+        smtp.login(absender, passwort)
+    return absender, host
+
+
 def senden(betreff, text, anhang_pfad=None, empfaenger=None, lager=None,
            html=None, logo_pfad=None, logo_cid="logo"):
     absender, passwort = zugangsdaten()
