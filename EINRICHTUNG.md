@@ -21,10 +21,23 @@ Aufgabenplanung Python später nicht.
 Prüfen in der PowerShell:
 
 ```powershell
-py --version
+python --version
 ```
 
 Erwartet wird `Python 3.11` oder höher.
+
+**Wichtig:** `python` **ohne** Dateiname dahinter startet die interaktive
+Python-Eingabe. Der Zeilenanfang wird dann zu `>>>`, und ab da versteht das
+Fenster keine PowerShell-Befehle mehr. `cd` scheitert dort an einem
+`SyntaxError`, weil Python das `\U` in `\Users` für eine Escape-Sequenz hält —
+das sieht aus, als sei der Pfad falsch, ist es aber nicht.
+
+| Zeilenanfang | wo du bist |
+|---|---|
+| `PS C:\...>` | PowerShell — hierhin gehören alle Befehle dieser Anleitung |
+| `>>>` | Python — mit `exit()` wieder heraus |
+
+Nach `python` folgt in dieser Anleitung deshalb **immer** ein Dateiname oder `-m`.
 
 ## 2. Programm ablegen
 
@@ -56,8 +69,8 @@ sondern eine Absprache, die eingehalten werden muss.
 ## 3. Abhängigkeiten
 
 ```powershell
-py -m pip install --upgrade pip
-py -m pip install openpyxl Pillow
+python -m pip install --upgrade pip
+python -m pip install openpyxl Pillow
 ```
 
 ## 4. Zugangsdaten hinterlegen
@@ -114,7 +127,7 @@ wörtlich.
 ### Prüfen, ob es sitzt
 
 ```powershell
-py inventur.py zugang
+python inventur.py zugang
 ```
 
 Der Befehl zeigt, welche Datei gelesen wurde und welche Werte gesetzt sind.
@@ -124,8 +137,8 @@ Passwörter werden dabei nur als Zeichenzahl ausgegeben, nie im Klartext.
 
 ```powershell
 cd "C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\10_Inventur"
-py inventur.py bestand
-py inventur.py tagesbericht
+python inventur.py bestand
+python inventur.py tagesbericht
 ```
 
 Die Anführungszeichen sind nötig — der Pfad enthält einen Bindestrich und
@@ -136,7 +149,7 @@ Der zweite Befehl ruft Vensoft ab. Kommen Zahlen, stimmen die Zugangsdaten.
 ## 6. OneDrive-Ordner eintragen
 
 ```powershell
-py inventur.py prospekte "C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\60_Prospekte"
+python inventur.py prospekte "C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\60_Prospekte"
 ```
 
 Ohne Argument zeigt der Befehl den hinterlegten Pfad an. Den genauen Pfad
@@ -157,7 +170,7 @@ Claude. Aufgabenplanung öffnen (`taskschd.msc`) → „Einfache Aufgabe erstell
 | Name | ProVend Tagesbericht | ProVend Bestandsliste |
 | Trigger | Täglich, 07:00 | Wöchentlich, Montag, 12:00 |
 | Aktion | Programm starten | Programm starten |
-| Programm | `py` | `py` |
+| Programm | `python` | `python` |
 | Argumente | `inventur.py tagesbericht --mail` | `inventur.py bericht --mail` |
 | Starten in | der Projektordner (siehe unten) | der Projektordner (siehe unten) |
 
@@ -200,7 +213,9 @@ doppelt als tagelang gar keine.
 
 | Meldung | Ursache |
 |---|---|
-| `py wird nicht erkannt` | Python ohne „Add to PATH" installiert |
+| `python wird nicht erkannt` | Python ohne „Add to PATH" installiert, oder PowerShell nach der Installation nicht neu geöffnet |
+| `SyntaxError: unicodeescape` bei `cd` | Du bist im Python-Interpreter (`>>>`) statt in PowerShell — mit `exit()` heraus |
+| `NameError: name '...' is not defined` | dasselbe: `>>>` statt `PS` |
 | `ModuleNotFoundError: openpyxl` | Schritt 3 übersprungen |
 | `VENSOFT_USER und VENSOFT_PASS muessen gesetzt sein` | `.provend.env` fehlt, heißt `.provend.env.txt`, oder liegt nicht im Benutzerprofil |
 | `Authentication failed` beim Versand | normales Passwort statt App-Passwort in `MAIL_PASSWORT` |
