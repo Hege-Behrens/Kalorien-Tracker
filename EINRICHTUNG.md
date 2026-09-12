@@ -91,8 +91,34 @@ das Projekt in OneDrive liegt.
 App-Passwort: Google-Konto → Sicherheit → Bestätigung in zwei Schritten →
 App-Passwörter. Google zeigt es genau einmal an.
 
-Achtung beim Speichern im Windows-Editor: unter „Dateityp" **Alle Dateien**
-wählen, sonst heißt die Datei `.env.txt` und wird nicht gefunden.
+### Wenn daraus `.provend.env.txt` wird
+
+Das passiert leicht: Der Windows-Editor hängt `.txt` an, sobald im Feld
+*Dateityp* beim Klick auf Speichern noch „Textdokumente" stand — die Auswahl
+muss **vor** dem Tippen des Namens umgestellt sein. Und der Explorer blendet
+bekannte Endungen aus, also sieht die Datei danach richtig aus.
+
+Das Programm liest die `.txt`-Fassung trotzdem, es geht also nichts kaputt.
+Sauber machen lässt es sich so:
+
+```powershell
+cd $env:USERPROFILE
+Rename-Item ".provend.env.txt" ".provend.env"
+Get-ChildItem -Force ".provend*" | Select-Object Name, Length
+```
+
+Zuverlässiger beim nächsten Mal: den Namen im Speichern-Dialog in
+Anführungszeichen setzen — `".provend.env"`. Dann nimmt der Dialog ihn
+wörtlich.
+
+### Prüfen, ob es sitzt
+
+```powershell
+py inventur.py zugang
+```
+
+Der Befehl zeigt, welche Datei gelesen wurde und welche Werte gesetzt sind.
+Passwörter werden dabei nur als Zeichenzahl ausgegeben, nie im Klartext.
 
 ## 5. Probelauf
 

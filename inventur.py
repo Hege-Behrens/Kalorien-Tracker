@@ -37,7 +37,13 @@ def _env_dateien():
     heim = os.path.expanduser("~")
     if heim and heim != "~":
         orte.append(os.path.join(heim, ".provend.env"))
+        # Der Windows-Editor haengt gern ein .txt an, auch wenn "Alle Dateien"
+        # gewaehlt ist. Der Explorer blendet die Endung dann aus, und es sieht
+        # richtig aus. Lieber die Datei trotzdem lesen als den Benutzer an
+        # einer unsichtbaren Endung scheitern lassen.
+        orte.append(os.path.join(heim, ".provend.env.txt"))
     orte.append(os.path.join(daten.BASIS, ".env"))
+    orte.append(os.path.join(daten.BASIS, ".env.txt"))
     return orte
 
 
@@ -794,6 +800,42 @@ def cmd_prospekte(args):
           + (": " + ", ".join(dateien[:6]) if dateien else ""))
 
 
+def cmd_zugang(args):
+    """Zeigt, woher die Zugangsdaten kommen - ohne sie preiszugeben."""
+    gefunden = [p for p in _env_dateien() if os.path.exists(p)]
+    if gefunden:
+        print("Gelesene Datei(en), wichtigste zuerst:")
+        for pfad in gefunden:
+            hinweis = "   <- heisst .txt, funktioniert trotzdem" \
+                if pfad.endswith(".txt") else ""
+            print(f"  {pfad}{hinweis}")
+    else:
+        print("Keine Zugangsdatei gefunden. Gesucht wurde in:")
+        for pfad in _env_dateien():
+            print(f"  {pfad}")
+
+    print()
+    for schluessel, zweck in (("VENSOFT_USER", "Vensoft-Benutzer"),
+                              ("VENSOFT_PASS", "Vensoft-Passwort"),
+                              ("MAIL_ABSENDER", "Absender der Berichte"),
+                              ("MAIL_PASSWORT", "App-Passwort fuer den Versand")):
+        wert = os.environ.get(schluessel, "")
+        if not wert:
+            stand = "FEHLT"
+        elif "PASS" in schluessel or "PASSWORT" in schluessel:
+            # Nur Laenge zeigen: genug, um einen Tippfehler zu bemerken,
+            # zu wenig, um das Passwort zu verraten.
+            stand = f"gesetzt ({len(wert)} Zeichen)"
+        else:
+            stand = wert
+        print(f"  {schluessel:<16}{stand:<28}{zweck}")
+
+    fehlt = [k for k in ("VENSOFT_USER", "VENSOFT_PASS") if not os.environ.get(k)]
+    if fehlt:
+        print("\nOhne VENSOFT_USER und VENSOFT_PASS koennen keine Verkaufsdaten "
+              "abgerufen werden.")
+
+
 def main():
     p = argparse.ArgumentParser(description="Lagerverwaltung Verkaufsautomaten")
     unter = p.add_subparsers(dest="befehl", required=True)
@@ -902,6 +944,10 @@ def main():
     pr.add_argument("pfad", nargs="?",
                     help="Pfad zum Prospektordner; ohne Angabe wird der hinterlegte gezeigt")
     pr.set_defaults(func=cmd_prospekte)
+
+    unter.add_parser("zugang",
+                     help="Pruefen, ob die Zugangsdaten gefunden werden"
+                     ).set_defaults(func=cmd_zugang)
 
     b = unter.add_parser("bericht", help="Excel-Bestandsliste erzeugen, optional per Mail")
     b.add_argument("--mail", action="store_true", help="Bericht an die hinterlegten Empfaenger senden")
