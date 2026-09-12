@@ -1,0 +1,19 @@
+Doppelklick-Verknuepfungen
+==========================
+
+Diese Dateien starten das Programm per Doppelklick und lassen das Fenster
+danach offen, bis du eine Taste druekst. Wer inventur.py direkt anklickt,
+sieht das Fenster nur aufblitzen - die Ausgabe ist dann schon weg.
+
+  Tagesbericht.cmd     Umsatz des Vortags
+  Bestandsliste.cmd    aktueller Lagerbestand
+  Warnungen.cmd        nur Artikel unter Mindestbestand
+  Sortiment.cmd        Renner und Ladenhueter der letzten 90 Tage
+  Zugang pruefen.cmd   zeigt, ob die Zugangsdaten gefunden werden
+
+Alle fuenf lesen nur. Sie buchen nichts und verschicken nichts.
+
+Tipp: Rechtsklick auf eine Datei -> "An 'Start' anheften" oder eine
+Verknuepfung auf den Desktop legen.
+
+Aendern laesst sich der Inhalt mit dem Editor - es sind einfache Textdateien.

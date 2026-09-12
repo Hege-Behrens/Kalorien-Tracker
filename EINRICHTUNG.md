@@ -160,6 +160,18 @@ Passwörter werden dabei nur als Zeichenzahl ausgegeben, nie im Klartext.
 
 ## 5. Probelauf
 
+**Nicht `inventur.py` im Explorer doppelklicken.** Windows öffnet dann kurz
+ein Fenster, führt das Programm aus und schließt sofort wieder — die Ausgabe
+ist weg, bevor man sie lesen kann, auch eine Fehlermeldung.
+
+Für den Alltag liegen im Ordner `windows` fünf Verknüpfungen zum Doppelklicken
+(`Tagesbericht.cmd`, `Bestandsliste.cmd`, …). Sie lassen das Fenster offen,
+bis du eine Taste drückst, und wechseln selbst in den richtigen Ordner. Alle
+fünf lesen nur, sie buchen nichts.
+
+Zum Einrichten trotzdem die PowerShell benutzen — dort siehst du Fehler im
+Zusammenhang:
+
 ```powershell
 cd "C:\Users\Frédéric\OneDrive\KI-Workstation\03_PROVEND_DEUTSCHLAND\10_Inventur"
 python inventur.py bestand
