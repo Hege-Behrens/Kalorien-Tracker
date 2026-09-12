@@ -163,10 +163,27 @@ def _schaechte(stamm):
 KONTAKT_FRIST_STUNDEN = 3
 
 
+def _deutsche_zeit(zeitpunkt):
+    """Rechnet auf deutsche Zeit um, wenn die Zeitzonendatenbank vorhanden ist.
+
+    Windows bringt keine mit; dort liefert sie erst das Paket tzdata. Fehlt
+    es, bleibt der Zeitpunkt so stehen, wie die Schnittstelle ihn geschickt
+    hat - das ist ohnehin bereits deutsche Zeit. Ein Anzeigekomfort darf den
+    Tagesbericht nicht zum Absturz bringen.
+    """
+    if zeitpunkt is None:
+        return None
+    try:
+        from zoneinfo import ZoneInfo
+
+        return zeitpunkt.astimezone(ZoneInfo("Europe/Berlin"))
+    except Exception:
+        return zeitpunkt
+
+
 def verbindungsstand(tabelle, jetzt=None):
     """Je Automat: Standort, letzter Kontakt, Stunden seither, still ja/nein."""
     from datetime import datetime, timezone
-    from zoneinfo import ZoneInfo
 
     jetzt = jetzt or datetime.now(timezone.utc)
     stand = []
@@ -175,11 +192,7 @@ def verbindungsstand(tabelle, jetzt=None):
             or tabelle.get("automat", {}).get(automat_id, "unbekannt")
         gelesen = _zeitpunkt(zeitpunkt)
         stunden = (jetzt - gelesen).total_seconds() / 3600 if gelesen else None
-        # Einmal zentral auf deutsche Zeit bringen: die Schnittstelle liefert
-        # zwar +02, aber der Bericht soll nicht davon abhaengen, welchen
-        # Versatz die Gegenstelle gerade schickt.
-        if gelesen:
-            gelesen = gelesen.astimezone(ZoneInfo("Europe/Berlin"))
+        gelesen = _deutsche_zeit(gelesen)
         stand.append({
             "automat": ort,
             "letzter_kontakt": gelesen,

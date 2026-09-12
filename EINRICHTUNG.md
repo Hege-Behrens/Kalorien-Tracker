@@ -70,8 +70,13 @@ sondern eine Absprache, die eingehalten werden muss.
 
 ```powershell
 python -m pip install --upgrade pip
-python -m pip install openpyxl Pillow
+python -m pip install openpyxl Pillow tzdata
 ```
+
+`tzdata` ist die Zeitzonendatenbank. Linux und macOS bringen eine mit, Windows
+nicht. Ohne sie läuft alles trotzdem — die Kontaktzeitpunkte der Automaten
+werden dann nur so angezeigt, wie die Schnittstelle sie liefert, und das ist
+ohnehin schon deutsche Zeit.
 
 ## 4. Zugangsdaten hinterlegen
 

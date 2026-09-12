@@ -138,7 +138,50 @@ def main():
         berichte = os.listdir(os.path.join(arbeit, "berichte"))
         assert any(d.endswith(".xlsx") for d in berichte), "Kein Excel-Bericht erzeugt"
 
+    pruefe_ohne_zeitzonen()
     print("Alle Pruefungen bestanden.")
+
+
+def pruefe_ohne_zeitzonen():
+    """Der Verbindungsstand darf ohne Zeitzonendatenbank nicht abstuerzen.
+
+    Windows bringt keine mit. Ein Anzeigekomfort - der Kontaktzeitpunkt in
+    deutscher Zeit - hat dort einmal den ganzen Tagesbericht zum Absturz
+    gebracht. Er muss auch ohne die Datenbank durchlaufen.
+    """
+    import zoneinfo
+    from datetime import datetime, timedelta, timezone
+
+    # Die vorherigen Pruefungen haben lager aus einem Temporaerverzeichnis
+    # geladen, das inzwischen geloescht ist. Hier ist das echte Projekt gemeint.
+    for modul in [m for m in list(sys.modules) if m.startswith("lager")]:
+        del sys.modules[modul]
+    sys.path.insert(0, BASIS)
+    from lager import vensoft
+
+    vorher = list(zoneinfo.TZPATH)
+    try:
+        zoneinfo.reset_tzpath([])
+        try:
+            zoneinfo.ZoneInfo("Europe/Berlin")
+            return  # tzdata ist installiert, die Probe waere ohne Aussage
+        except zoneinfo.ZoneInfoNotFoundError:
+            pass
+
+        jetzt = datetime.now(timezone.utc)
+        tabelle = {
+            "kontakt_je_automat": {"a1": (jetzt - timedelta(hours=1)).strftime(
+                "%Y-%m-%d %H:%M:%S+00")},
+            "ort_je_automat": {"a1": "Teststandort"},
+        }
+        stand = vensoft.verbindungsstand(tabelle, jetzt=jetzt)
+        assert len(stand) == 1, "Verbindungsstand ohne Zeitzonendatenbank leer"
+        assert stand[0]["letzter_kontakt"] is not None, "Zeitpunkt verloren"
+        assert not stand[0]["still"], "Kontakt vor einer Stunde gilt als still"
+    finally:
+        zoneinfo.reset_tzpath(vorher)
+        if BASIS in sys.path:
+            sys.path.remove(BASIS)
 
 
 if __name__ == "__main__":
