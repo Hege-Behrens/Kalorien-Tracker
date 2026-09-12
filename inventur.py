@@ -22,6 +22,34 @@ from lager.zuordnung import alias_lernen, zuordnen
 BERICHTE = os.path.join(daten.BASIS, "berichte")
 
 
+def _umgebung_laden():
+    """Liest .env neben dem Programm, falls vorhanden.
+
+    Unter Linux setzt man Zugangsdaten mit `export` vor dem Aufruf; unter
+    Windows ist das umstaendlich und in der Aufgabenplanung gar nicht
+    vorgesehen. Eine .env-Datei funktioniert auf beiden Systemen gleich.
+    Bereits gesetzte Umgebungsvariablen haben Vorrang - wer sie im System
+    hinterlegt hat, soll nicht von der Datei ueberstimmt werden.
+    """
+    pfad = os.path.join(daten.BASIS, ".env")
+    if not os.path.exists(pfad):
+        return
+    with open(pfad, encoding="utf-8-sig") as f:
+        for zeile in f:
+            zeile = zeile.strip()
+            if not zeile or zeile.startswith("#") or "=" not in zeile:
+                continue
+            schluessel, _, wert = zeile.partition("=")
+            schluessel = schluessel.strip()
+            if schluessel.startswith("export "):
+                schluessel = schluessel[7:].strip()
+            wert = wert.strip().strip('"').strip("'")
+            os.environ.setdefault(schluessel, wert)
+
+
+_umgebung_laden()
+
+
 def _speichern(lager):
     daten.speichern(lager)
     daten.alias_speichern(lager)
@@ -721,6 +749,34 @@ def cmd_sortiment(args):
         print(f"\nCSV geschrieben: {pfad}")
 
 
+def cmd_prospekte(args):
+    """Ordner mit dem aktuellen Ordersatz anzeigen oder setzen."""
+    lager = daten.laden()
+    if not args.pfad:
+        pfad = lager.einstellungen.get("prospekte_ordner", "")
+        if not pfad:
+            print("Kein Prospektordner hinterlegt.")
+            print('Setzen mit: inventur.py prospekte "C:\\Users\\...\\OneDrive\\60_Prospekte"')
+        else:
+            print(pfad)
+            # Der Ordner liegt in OneDrive und kann auf einem anderen Rechner
+            # fehlen - das soll auffallen, bevor die Montagsroutine daran
+            # scheitert.
+            if not os.path.isdir(pfad):
+                print("ACHTUNG: Dieser Ordner ist von hier aus nicht erreichbar.")
+        return
+
+    pfad = args.pfad.rstrip("\\/")
+    if not os.path.isdir(pfad):
+        sys.exit(f"Kein Ordner: {pfad}")
+    lager.einstellungen["prospekte_ordner"] = pfad
+    daten.einstellungen_speichern(lager)
+    dateien = sorted(os.listdir(pfad))
+    print(f"Prospektordner gesetzt: {pfad}")
+    print(f"{len(dateien)} Datei(en) darin"
+          + (": " + ", ".join(dateien[:6]) if dateien else ""))
+
+
 def main():
     p = argparse.ArgumentParser(description="Lagerverwaltung Verkaufsautomaten")
     unter = p.add_subparsers(dest="befehl", required=True)
@@ -823,6 +879,12 @@ def main():
     so.add_argument("--csv", nargs="?", const=True, default=False,
                     help="Auswertung als CSV schreiben (optional mit Pfad)")
     so.set_defaults(func=cmd_sortiment)
+
+    pr = unter.add_parser("prospekte",
+                          help="Ordner mit dem aktuellen Ordersatz anzeigen oder setzen")
+    pr.add_argument("pfad", nargs="?",
+                    help="Pfad zum Prospektordner; ohne Angabe wird der hinterlegte gezeigt")
+    pr.set_defaults(func=cmd_prospekte)
 
     b = unter.add_parser("bericht", help="Excel-Bestandsliste erzeugen, optional per Mail")
     b.add_argument("--mail", action="store_true", help="Bericht an die hinterlegten Empfaenger senden")
