@@ -22,6 +22,32 @@ wird.
 7:30 und 12:00 Uhr; ab Ende Oktober entsprechen sie 6:00, 6:30 und 11:00 Uhr
 deutscher Zeit.
 
+## Angebotsprüfung aus dem Prospektordner
+
+Die Montagsroutine prüft zusätzlich den Ordersatz im OneDrive-Ordner
+`60_Prospekte` gegen unsere eigenen Absatzzahlen. Das Ergebnis geht in den
+Chat, nicht in die Mail — es ist eine Einkaufsentscheidung, keine
+Bestandsmeldung.
+
+**Ein Angebot lohnt sich nur, wenn beides zutrifft:**
+
+| Bedingung | Schwelle | Warum |
+|---|---|---|
+| Der Artikel verkauft sich | ab 1,5 Stück/Woche | Ein billiger Ladenhüter bleibt ein Ladenhüter |
+| Der Bestand reicht nicht mehr lange | unter 8 Wochen Reichweite | Was 20 Wochen reicht, braucht kein Angebot |
+
+Gemeldet werden Angebotspreis, unser Verkaufspreis, Wochenabsatz, Reichweite
+und der Rohertrag je Stück — sortiert nach Rohertrag pro Woche.
+
+**Wichtige Einschränkung:** Einkaufspreise stehen nicht im System. Das
+Bewegungsjournal hat kein Preisfeld, und es wurde bislang keine einzige
+Einkaufsrechnung eingelesen. „Günstig" lässt sich deshalb *nicht* gegen
+frühere Einkaufspreise prüfen, sondern nur als Spanne zum Verkaufspreis
+ausdrücken. Wer die Meldung liest, muss das wissen.
+
+Ist OneDrive nicht verbunden, entfällt der Schritt. Der Versand der
+Bestandsliste hängt nicht daran.
+
 ## Wöchentlicher Versand über eine Claude-Routine
 
 Der Versand läuft ohne GitHub-Passwort und ohne App-Passwort: Eine Routine
