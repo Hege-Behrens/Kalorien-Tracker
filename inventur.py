@@ -36,12 +36,14 @@ def _env_dateien():
         orte.append(os.environ["PROVEND_ENV"])
     heim = os.path.expanduser("~")
     if heim and heim != "~":
-        orte.append(os.path.join(heim, ".provend.env"))
-        # Der Windows-Editor haengt gern ein .txt an, auch wenn "Alle Dateien"
-        # gewaehlt ist. Der Explorer blendet die Endung dann aus, und es sieht
-        # richtig aus. Lieber die Datei trotzdem lesen als den Benutzer an
-        # einer unsichtbaren Endung scheitern lassen.
-        orte.append(os.path.join(heim, ".provend.env.txt"))
+        # Vier Schreibweisen, weil Windows an dieser Stelle vier Fallen stellt:
+        # der Editor haengt ein .txt an, auch wenn "Alle Dateien" gewaehlt ist;
+        # der Explorer blendet die Endung aus, sodass es richtig aussieht; und
+        # Namen mit fuehrendem Punkt lassen sich im Explorer nur umstaendlich
+        # anlegen. An keiner dieser Huerden soll die Einrichtung scheitern.
+        for name in (".provend.env", ".provend.env.txt",
+                     "provend.env", "provend.env.txt"):
+            orte.append(os.path.join(heim, name))
     orte.append(os.path.join(daten.BASIS, ".env"))
     orte.append(os.path.join(daten.BASIS, ".env.txt"))
     return orte
