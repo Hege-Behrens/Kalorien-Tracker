@@ -118,8 +118,8 @@ Nicht das normale Kontopasswort. Ein App-Passwort holst du so:
 3. Direkt zu [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords),
    einen Namen vergeben (etwa `ProVend Inventur`) und erstellen.
 4. Google zeigt **16 Zeichen in vier Blöcken**, etwa `abcd efgh ijkl mnop`.
-   Die Leerzeichen gehören **nicht** dazu — in die Datei kommen die 16 Zeichen
-   am Stück.
+   Ob du die Leerzeichen mitkopierst oder nicht, ist egal — Gmail nimmt beides
+   an (nachgeprüft). Die Anmeldeprobe unten sagt dir im Zweifel, ob es sitzt.
 
 Google zeigt das Passwort genau einmal. Ist es weg, einfach ein neues erzeugen
 und das alte löschen.
@@ -134,8 +134,8 @@ Oder per Doppelklick auf `windows\Mailzugang testen.cmd` — die Datei wechselt
 selbst in den richtigen Ordner.
 
 Der Befehl meldet sich bei Gmail an und trennt sofort wieder. `535` oder
-`Username and Password not accepted` heißt: falsches Passwort, meist ein
-mitkopiertes Leerzeichen.
+`Username and Password not accepted` heißt: falsches Passwort — meist das
+Kontopasswort statt des App-Passworts.
 
 ### Wenn daraus `.provend.env.txt` wird
 
