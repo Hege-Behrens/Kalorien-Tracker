@@ -90,3 +90,10 @@ datum,typ,artikel_id,menge,beleg,bezeichnung,quelle,notiz
 2026-09-10,VERKAUF,red-bull-025,1,vensoft:3095409794207450660,"Red Bull 0,25",Christian-IV- Straße 32 GL,alias
 2026-09-10,VERKAUF,snickers-riegel-50gr,1,vensoft:3095410881530431040,Snickers Riegel 50gr.,Christian-IV- Straße 32 GL,alias
 2026-09-11,VERKAUF,coca-cola-033l,1,vensoft:3095649795461613191,"Coca Cola 0,33l",Christian-IV- Straße 32 GL,alias
+2026-09-11,VERKAUF,coca-cola-033l,1,vensoft:3096100175068791934,"Coca Cola 0,33l","Blomestraße 44, Heiligenstedten",alias
+2026-09-11,VERKAUF,fanta-orange-033l,1,vensoft:3096168790426126309,"Fanta Orange 0,33l",Christian-IV- Straße 32 GL,alias
+2026-09-11,VERKAUF,kitkat-chunky,1,vensoft:3096169049776719657,KitKat Chunky,Christian-IV- Straße 32 GL,alias
+2026-09-11,VERKAUF,monster-strawberry,1,vensoft:3095775213992805589,Monster Strawberry,Christian-IV- Straße 32 GL,alias
+2026-09-11,VERKAUF,monster-top-speed,1,vensoft:3095775459762242671,Monster TopSpeed,Christian-IV- Straße 32 GL,alias
+2026-09-12,VERKAUF,red-bull-025,1,vensoft:3096386981257545397,"Red Bull 0,25",Christian-IV- Straße 32 GL,alias
+2026-09-12,VERKAUF,red-bull-025,1,vensoft:3096387232135645101,"Red Bull 0,25",Christian-IV- Straße 32 GL,alias
